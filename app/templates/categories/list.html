@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Категории — Семейный бюджет{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">Справочник</span>
+        <h1>Категории</h1>
+        <p>Группируйте операции, чтобы понимать структуру бюджета.</p>
+    </div>
+    <a class="button button--primary" href="/categories/new">Добавить категорию</a>
+</div>
+
+{% if categories|default([]) %}
+    <section class="category-grid" aria-label="Список категорий">
+        {% for category in categories %}
+            <article class="card category-card">
+                <div class="category-icon" aria-hidden="true">{{ category.icon|default("₽") }}</div>
+                <div class="category-info">
+                    <h2>{{ category.name }}</h2>
+                    <span class="tag tag--{{ category.type }}">
+                        {{ "Доход" if category.type == "income" else "Расход" }}
+                    </span>
+                </div>
+                <a class="table-link" href="/categories/{{ category.id }}/edit">Изменить</a>
+            </article>
+        {% endfor %}
+    </section>
+{% else %}
+    <section class="card empty-state">
+        <div class="empty-icon" aria-hidden="true">#</div>
+        <h2>Категорий пока нет</h2>
+        <p>Создайте категории, например «Продукты», «Транспорт» или «Зарплата».</p>
+        <a class="button button--primary" href="/categories/new">Создать категорию</a>
+    </section>
+{% endif %}
+{% endblock %}

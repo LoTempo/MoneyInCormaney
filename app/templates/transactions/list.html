@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Операции — Семейный бюджет{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">История</span>
+        <h1>Операции</h1>
+        <p>Все доходы и расходы вашей семьи.</p>
+    </div>
+    <a class="button button--primary" href="/transactions/new">Добавить операцию</a>
+</div>
+
+<section class="card filter-card">
+    <form method="get" class="filter-form">
+        <div class="form-group">
+            <label for="type">Тип</label>
+            <select id="type" name="type">
+                <option value="">Все операции</option>
+                <option value="income">Доходы</option>
+                <option value="expense">Расходы</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="month">Месяц</label>
+            <input id="month" name="month" type="month">
+        </div>
+        <div class="form-group filter-action">
+            <button class="button button--outline" type="submit">Применить</button>
+        </div>
+    </form>
+</section>
+
+<section class="card content-card">
+    {% if transactions|default([]) %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Описание</th>
+                        <th>Категория</th>
+                        <th>Участник</th>
+                        <th>Дата</th>
+                        <th class="align-right">Сумма</th>
+                        <th><span class="visually-hidden">Действия</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.description }}</td>
+                            <td><span class="tag">{{ transaction.category }}</span></td>
+                            <td>{{ transaction.member }}</td>
+                            <td>{{ transaction.date }}</td>
+                            <td class="align-right amount amount--{{ transaction.type }}">
+                                {{ transaction.amount }}
+                            </td>
+                            <td class="align-right">
+                                <a class="table-link" href="/transactions/{{ transaction.id }}/edit">Изменить</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon" aria-hidden="true">₽</div>
+            <h2>Список операций пуст</h2>
+            <p>После добавления доходов и расходов они появятся в этой таблице.</p>
+            <a class="button button--primary" href="/transactions/new">Добавить первую операцию</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

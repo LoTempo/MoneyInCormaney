@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Вступление в семью — Семейный бюджет{% endblock %}
+
+{% block content %}
+<div class="narrow-content">
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">Приглашение</span>
+            <h1>Присоединиться к семье</h1>
+            <p>Введите код, который вам отправил создатель семейного пространства.</p>
+        </div>
+    </div>
+
+    <section class="card form-card">
+        <form method="post" class="form-stack">
+            <div class="form-group">
+                <label for="invite_code">Код приглашения</label>
+                <input class="code-input" id="invite_code" name="invite_code" type="text"
+                       maxlength="12" autocomplete="off" required placeholder="ABCD-1234">
+                <small>Регистр букв не имеет значения.</small>
+            </div>
+
+            <div class="form-actions">
+                <a class="button button--ghost" href="/family/create">Создать новую семью</a>
+                <button class="button button--primary" type="submit">Присоединиться</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

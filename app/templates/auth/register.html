@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация — Семейный бюджет{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+    <div class="auth-intro">
+        <span class="eyebrow">Новый аккаунт</span>
+        <h1>Начните планировать бюджет вместе</h1>
+        <p>Создайте аккаунт, а затем заведите новую семью или присоединитесь к существующей.</p>
+    </div>
+
+    <div class="card auth-card">
+        <div class="section-heading">
+            <h2>Регистрация</h2>
+            <p>Все поля обязательны для заполнения.</p>
+        </div>
+
+        <form method="post" class="form-stack">
+            <div class="form-group">
+                <label for="name">Имя</label>
+                <input id="name" name="name" type="text" autocomplete="name" required
+                       placeholder="Как к вам обращаться">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Электронная почта</label>
+                <input id="email" name="email" type="email" autocomplete="email" required
+                       placeholder="name@example.com">
+            </div>
+
+            <div class="form-grid form-grid--two">
+                <div class="form-group">
+                    <label for="password">Пароль</label>
+                    <input id="password" name="password" type="password" autocomplete="new-password"
+                           minlength="8" required placeholder="Не менее 8 символов">
+                </div>
+                <div class="form-group">
+                    <label for="password_confirm">Повторите пароль</label>
+                    <input id="password_confirm" name="password_confirm" type="password"
+                           autocomplete="new-password" minlength="8" required placeholder="Ещё раз">
+                </div>
+            </div>
+
+            <label class="checkbox-row">
+                <input name="agreement" type="checkbox" required>
+                <span>Я согласен с правилами использования сервиса</span>
+            </label>
+
+            <button class="button button--primary button--full" type="submit">Создать аккаунт</button>
+        </form>
+
+        <p class="form-note">Уже есть аккаунт? <a href="/login">Войти</a></p>
+    </div>
+</section>
+{% endblock %}

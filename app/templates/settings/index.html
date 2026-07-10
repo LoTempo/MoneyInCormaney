@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки — Семейный бюджет{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">Профиль</span>
+        <h1>Настройки</h1>
+        <p>Личные данные и параметры отображения бюджета.</p>
+    </div>
+</div>
+
+<div class="settings-layout">
+    <section class="card form-card">
+        <div class="section-heading">
+            <h2>Личные данные</h2>
+            <p>Эта информация видна участникам вашей семьи.</p>
+        </div>
+
+        <form method="post" class="form-stack">
+            <div class="form-grid form-grid--two">
+                <div class="form-group">
+                    <label for="name">Имя</label>
+                    <input id="name" name="name" type="text" autocomplete="name" required
+                           value="{{ user.name|default('') }}">
+                </div>
+                <div class="form-group">
+                    <label for="email">Электронная почта</label>
+                    <input id="email" name="email" type="email" autocomplete="email" required
+                           value="{{ user.email|default('') }}">
+                </div>
+            </div>
+
+            <div class="form-grid form-grid--two">
+                <div class="form-group">
+                    <label for="currency">Валюта</label>
+                    <select id="currency" name="currency">
+                        <option value="RUB">Российский рубль (₽)</option>
+                        <option value="USD">Доллар США ($)</option>
+                        <option value="EUR">Евро (€)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="week_start">Начало недели</label>
+                    <select id="week_start" name="week_start">
+                        <option value="monday">Понедельник</option>
+                        <option value="sunday">Воскресенье</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="button button--primary" type="submit">Сохранить настройки</button>
+            </div>
+        </form>
+    </section>
+
+    <aside class="card info-card">
+        <h2>Безопасность</h2>
+        <p>Используйте уникальный пароль и никому его не сообщайте.</p>
+        <a class="button button--outline button--full" href="/settings/password">Изменить пароль</a>
+    </aside>
+</div>
+{% endblock %}

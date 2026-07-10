@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% set is_editing = transaction is defined and transaction %}
+{% block title %}{{ "Изменение" if is_editing else "Новая операция" }} — Семейный бюджет{% endblock %}
+
+{% block content %}
+<div class="narrow-content">
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">{{ "Редактирование" if is_editing else "Новая запись" }}</span>
+            <h1>{{ "Изменить операцию" if is_editing else "Добавить операцию" }}</h1>
+            <p>Укажите основные сведения о доходе или расходе.</p>
+        </div>
+    </div>
+
+    <section class="card form-card">
+        <form method="post" class="form-stack">
+            <div class="form-group">
+                <span class="field-label">Тип операции</span>
+                <div class="choice-grid">
+                    <label class="choice-card">
+                        <input name="type" type="radio" value="expense" required
+                               {% if not is_editing or transaction.type == "expense" %}checked{% endif %}>
+                        <span>Расход</span>
+                    </label>
+                    <label class="choice-card">
+                        <input name="type" type="radio" value="income" required
+                               {% if is_editing and transaction.type == "income" %}checked{% endif %}>
+                        <span>Доход</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-grid form-grid--two">
+                <div class="form-group">
+                    <label for="amount">Сумма</label>
+                    <div class="input-with-suffix">
+                        <input id="amount" name="amount" type="number" min="0.01" step="0.01" required
+                               value="{{ transaction.amount if is_editing else '' }}" placeholder="0,00">
+                        <span>₽</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="date">Дата</label>
+                    <input id="date" name="date" type="date" required
+                           value="{{ transaction.date if is_editing else '' }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="category_id">Категория</label>
+                <select id="category_id" name="category_id" required>
+                    <option value="">Выберите категорию</option>
+                    {% for category in categories|default([]) %}
+                        <option value="{{ category.id }}"
+                                {% if is_editing and transaction.category_id == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Описание</label>
+                <input id="description" name="description" type="text" maxlength="200" required
+                       value="{{ transaction.description if is_editing else '' }}"
+                       placeholder="Например, продукты на неделю">
+            </div>
+
+            <div class="form-group">
+                <label for="note">Комментарий <span class="optional">необязательно</span></label>
+                <textarea id="note" name="note" rows="4"
+                          placeholder="Дополнительная информация">{{ transaction.note if is_editing else '' }}</textarea>
+            </div>
+
+            <div class="form-actions">
+                <a class="button button--ghost" href="/transactions">Отмена</a>
+                <button class="button button--primary" type="submit">
+                    {{ "Сохранить изменения" if is_editing else "Добавить операцию" }}
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

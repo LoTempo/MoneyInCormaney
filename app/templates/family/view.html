@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Моя семья — Семейный бюджет{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">Общее пространство</span>
+        <h1>{{ family.name|default("Моя семья") }}</h1>
+        <p>Участники семейного бюджета и приглашения.</p>
+    </div>
+</div>
+
+<div class="family-layout">
+    <section class="card content-card">
+        <div class="section-heading">
+            <h2>Участники</h2>
+            <p>{{ members|default([])|length }} человек в семейном пространстве.</p>
+        </div>
+
+        {% if members|default([]) %}
+            <div class="member-list">
+                {% for member in members %}
+                    <div class="member-row">
+                        <div class="avatar" aria-hidden="true">{{ member.name[:1]|upper }}</div>
+                        <div class="member-info">
+                            <strong>{{ member.name }}</strong>
+                            <span>{{ member.email }}</span>
+                        </div>
+                        {% if member.is_owner %}<span class="tag">Владелец</span>{% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted-text">Список участников пока пуст.</p>
+        {% endif %}
+    </section>
+
+    <aside class="card invite-card">
+        <span class="eyebrow">Пригласить близких</span>
+        <h2>Код семьи</h2>
+        <div class="invite-code">{{ family.invite_code|default("ABCD-1234") }}</div>
+        <p>Передайте этот код человеку, которого хотите добавить в семейный бюджет.</p>
+        <small>Не публикуйте код в открытом доступе.</small>
+    </aside>
+</div>
+{% endblock %}

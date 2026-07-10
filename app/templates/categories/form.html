@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% set is_editing = category is defined and category %}
+{% block title %}{{ "Изменение категории" if is_editing else "Новая категория" }} — Семейный бюджет{% endblock %}
+
+{% block content %}
+<div class="narrow-content">
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">Справочник</span>
+            <h1>{{ "Изменить категорию" if is_editing else "Новая категория" }}</h1>
+            <p>Категория поможет объединять похожие операции.</p>
+        </div>
+    </div>
+
+    <section class="card form-card">
+        <form method="post" class="form-stack">
+            <div class="form-group">
+                <label for="name">Название</label>
+                <input id="name" name="name" type="text" maxlength="80" required
+                       value="{{ category.name if is_editing else '' }}" placeholder="Например, Продукты">
+            </div>
+
+            <div class="form-group">
+                <span class="field-label">Тип категории</span>
+                <div class="choice-grid">
+                    <label class="choice-card">
+                        <input name="type" type="radio" value="expense" required
+                               {% if not is_editing or category.type == "expense" %}checked{% endif %}>
+                        <span>Для расходов</span>
+                    </label>
+                    <label class="choice-card">
+                        <input name="type" type="radio" value="income" required
+                               {% if is_editing and category.type == "income" %}checked{% endif %}>
+                        <span>Для доходов</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-grid form-grid--two">
+                <div class="form-group">
+                    <label for="icon">Символ <span class="optional">необязательно</span></label>
+                    <input id="icon" name="icon" type="text" maxlength="2"
+                           value="{{ category.icon if is_editing else '' }}" placeholder="₽">
+                </div>
+                <div class="form-group">
+                    <label for="color">Цвет</label>
+                    <input id="color" name="color" type="color"
+                           value="{{ category.color if is_editing else '#2563eb' }}">
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a class="button button--ghost" href="/categories">Отмена</a>
+                <button class="button button--primary" type="submit">Сохранить категорию</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

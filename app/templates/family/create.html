@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Создание семьи — Семейный бюджет{% endblock %}
+
+{% block content %}
+<div class="narrow-content">
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">Первый шаг</span>
+            <h1>Создать семью</h1>
+            <p>Объедините домашние финансы в одном общем пространстве.</p>
+        </div>
+    </div>
+
+    <section class="card form-card">
+        <form method="post" class="form-stack">
+            <div class="form-group">
+                <label for="family_name">Название семьи</label>
+                <input id="family_name" name="family_name" type="text" maxlength="100" required
+                       placeholder="Например, Семья Ивановых">
+                <small>Название будут видеть приглашённые участники.</small>
+            </div>
+
+            <div class="info-box">
+                <strong>Что произойдёт дальше?</strong>
+                <p>После создания вы получите код приглашения. Передайте его близким, чтобы они могли присоединиться.</p>
+            </div>
+
+            <div class="form-actions">
+                <a class="button button--ghost" href="/family/join">У меня уже есть код</a>
+                <button class="button button--primary" type="submit">Создать семью</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

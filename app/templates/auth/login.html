@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Вход — Семейный бюджет{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+    <div class="auth-intro">
+        <span class="eyebrow">С возвращением</span>
+        <h1>Все семейные финансы в одном месте</h1>
+        <p>Войдите, чтобы увидеть общий баланс, последние операции и цели семьи.</p>
+    </div>
+
+    <div class="card auth-card">
+        <div class="section-heading">
+            <h2>Вход в аккаунт</h2>
+            <p>Введите данные, указанные при регистрации.</p>
+        </div>
+
+        <form method="post" class="form-stack">
+            <div class="form-group">
+                <label for="email">Электронная почта</label>
+                <input id="email" name="email" type="email" autocomplete="email" required
+                       placeholder="name@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input id="password" name="password" type="password" autocomplete="current-password"
+                       required placeholder="Введите пароль">
+            </div>
+
+            <label class="checkbox-row">
+                <input name="remember" type="checkbox">
+                <span>Запомнить меня</span>
+            </label>
+
+            <button class="button button--primary button--full" type="submit">Войти</button>
+        </form>
+
+        <p class="form-note">Нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
+    </div>
+</section>
+{% endblock %}

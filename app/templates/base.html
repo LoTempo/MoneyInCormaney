@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Семейное приложение для учёта доходов и расходов">
+    <title>{% block title %}Семейный бюджет{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <a class="skip-link" href="#main-content">Перейти к содержимому</a>
+
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="/" aria-label="Семейный бюджет — главная">
+                <span class="brand-mark">FB</span>
+                <span>Семейный бюджет</span>
+            </a>
+
+            <nav class="main-nav" aria-label="Основная навигация">
+                <a href="/">Обзор</a>
+                <a href="/transactions">Операции</a>
+                <a href="/categories">Категории</a>
+                <a href="/family">Семья</a>
+                <a href="/settings">Настройки</a>
+            </nav>
+
+            <a class="button button--small button--outline" href="/login">Войти</a>
+        </div>
+    </header>
+
+    <main id="main-content" class="container page-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-list" aria-live="polite">
+                    {% for category, message in messages %}
+                        <div class="flash flash--{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <span>Семейный бюджет</span>
+            <span>Учёт финансов без лишней сложности</span>
+        </div>
+    </footer>
+</body>
+</html>
