@@ -8,6 +8,6 @@
     <span class="eyebrow">Страница не найдена</span>
     <h1>Похоже, такого адреса нет</h1>
     <p>Возможно, страница была перемещена или в адресе допущена ошибка.</p>
-    <a class="button button--primary" href="/">Вернуться на главную</a>
+    <a class="button button--primary" href="{{ url_for('dashboard.index') }}">Вернуться на главную</a>
 </section>
 {% endblock %}

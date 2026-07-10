@@ -18,10 +18,11 @@
         </div>
 
         <form method="post" class="form-stack">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="email">Электронная почта</label>
                 <input id="email" name="email" type="email" autocomplete="email" required
-                       placeholder="name@example.com">
+                       value="{{ request.form.get('email', '') }}" placeholder="name@example.com">
             </div>
 
             <div class="form-group">
@@ -38,7 +39,7 @@
             <button class="button button--primary button--full" type="submit">Войти</button>
         </form>
 
-        <p class="form-note">Нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
+        <p class="form-note">Нет аккаунта? <a href="{{ url_for('auth.register') }}">Зарегистрироваться</a></p>
     </div>
 </section>
 {% endblock %}

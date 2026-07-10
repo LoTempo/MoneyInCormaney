@@ -1,10 +1,79 @@
-# My Web Project
+# Семейный бюджет
 
-Веб-приложение на Python и HTML.
+Веб-приложение для совместного учёта семейных доходов и расходов.
 
-## Установка
+## Возможности
 
-Создать виртуальное окружение и установить зависимости:
+- регистрация и вход с безопасным хэшированием паролей;
+- семейные пространства и приглашения по коду;
+- доходы, расходы и месячная сводка;
+- категории и подкатегории любой вложенности;
+- профиль с электронной почтой, телефоном и валютой;
+- CSRF-защита форм и базовые HTTP-заголовки безопасности.
 
-```bash
-pip install -r requirements.txt
+## Требования
+
+- Python 3.12 или новее;
+- PostgreSQL 15 или новее;
+- виртуальное окружение Python.
+
+## Локальная установка в Windows PowerShell
+
+1. Установите зависимости:
+
+   ```powershell
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   ```
+
+2. Создайте в PostgreSQL базу `family_budget`.
+
+3. Скопируйте настройки из `.env.example` в `.env` и замените:
+
+   - `SECRET_KEY` на длинную случайную строку;
+   - `DATABASE_HOST`, `DATABASE_PORT` и `DATABASE_NAME` на параметры базы;
+   - `DATABASE_USER` и `DATABASE_PASSWORD` на данные пользователя PostgreSQL.
+
+   Если хостинг выдаёт готовый адрес подключения, вместо отдельных параметров можно
+   добавить переменную `DATABASE_URL`.
+
+4. Создайте таблицы:
+
+   ```powershell
+   .\.venv\Scripts\python.exe -m flask --app run init-db
+   ```
+
+5. Запустите приложение:
+
+   ```powershell
+   .\.venv\Scripts\python.exe run.py
+   ```
+
+6. Откройте `http://127.0.0.1:5000`.
+
+## Тесты
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+Полная проверка с реальной PostgreSQL выполняется в транзакции и откатывает
+созданные тестовые данные:
+
+```powershell
+$env:RUN_DATABASE_TESTS="1"
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+Remove-Item Env:RUN_DATABASE_TESTS
+```
+
+## Публикация
+
+Для рабочего сервера установите в `.env` значения:
+
+```text
+APP_ENV=production
+FLASK_DEBUG=false
+SERVER_HOST=0.0.0.0
+```
+
+При таком запуске `run.py` использует Waitress. Перед публикацией также нужны HTTPS,
+обратный прокси, резервное копирование PostgreSQL и хранение секретов вне Git.

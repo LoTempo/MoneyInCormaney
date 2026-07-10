@@ -8,6 +8,6 @@
     <span class="eyebrow">Ошибка сервера</span>
     <h1>Не удалось обработать запрос</h1>
     <p>Мы уже знаем о проблеме. Попробуйте обновить страницу немного позже.</p>
-    <a class="button button--primary" href="/">Вернуться на главную</a>
+    <a class="button button--primary" href="{{ url_for('dashboard.index') }}">Вернуться на главную</a>
 </section>
 {% endblock %}

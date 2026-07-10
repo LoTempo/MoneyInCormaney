@@ -14,20 +14,27 @@
     <div class="card auth-card">
         <div class="section-heading">
             <h2>Регистрация</h2>
-            <p>Все поля обязательны для заполнения.</p>
+            <p>Заполните обязательные поля; телефон можно добавить сейчас или позже.</p>
         </div>
 
         <form method="post" class="form-stack">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="name">Имя</label>
                 <input id="name" name="name" type="text" autocomplete="name" required
-                       placeholder="Как к вам обращаться">
+                       value="{{ request.form.get('name', '') }}" placeholder="Как к вам обращаться">
             </div>
 
             <div class="form-group">
                 <label for="email">Электронная почта</label>
                 <input id="email" name="email" type="email" autocomplete="email" required
-                       placeholder="name@example.com">
+                       value="{{ request.form.get('email', '') }}" placeholder="name@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Номер телефона <span class="optional">необязательно</span></label>
+                <input id="phone" name="phone" type="tel" autocomplete="tel"
+                       value="{{ request.form.get('phone', '') }}" placeholder="+7 900 000-00-00">
             </div>
 
             <div class="form-grid form-grid--two">
@@ -51,7 +58,7 @@
             <button class="button button--primary button--full" type="submit">Создать аккаунт</button>
         </form>
 
-        <p class="form-note">Уже есть аккаунт? <a href="/login">Войти</a></p>
+        <p class="form-note">Уже есть аккаунт? <a href="{{ url_for('auth.login') }}">Войти</a></p>
     </div>
 </section>
 {% endblock %}

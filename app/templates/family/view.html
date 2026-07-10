@@ -26,6 +26,7 @@
                         <div class="member-info">
                             <strong>{{ member.name }}</strong>
                             <span>{{ member.email }}</span>
+                            {% if member.phone %}<span>{{ member.phone }}</span>{% endif %}
                         </div>
                         {% if member.is_owner %}<span class="tag">Владелец</span>{% endif %}
                     </div>
@@ -39,7 +40,7 @@
     <aside class="card invite-card">
         <span class="eyebrow">Пригласить близких</span>
         <h2>Код семьи</h2>
-        <div class="invite-code">{{ family.invite_code|default("ABCD-1234") }}</div>
+        <div class="invite-code">{{ family.invite_code }}</div>
         <p>Передайте этот код человеку, которого хотите добавить в семейный бюджет.</p>
         <small>Не публикуйте код в открытом доступе.</small>
     </aside>

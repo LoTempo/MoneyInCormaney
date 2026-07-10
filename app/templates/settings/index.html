@@ -7,7 +7,7 @@
     <div>
         <span class="eyebrow">Профиль</span>
         <h1>Настройки</h1>
-        <p>Личные данные и параметры отображения бюджета.</p>
+        <p>Личные данные, безопасность и параметры отображения бюджета.</p>
     </div>
 </div>
 
@@ -15,37 +15,48 @@
     <section class="card form-card">
         <div class="section-heading">
             <h2>Личные данные</h2>
-            <p>Эта информация видна участникам вашей семьи.</p>
+            <p>Имя, почту и телефон увидят только участники вашей семьи.</p>
         </div>
 
-        <form method="post" class="form-stack">
+        <form method="post" action="{{ url_for('settings.settings_view') }}" class="form-stack">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-grid form-grid--two">
                 <div class="form-group">
                     <label for="name">Имя</label>
                     <input id="name" name="name" type="text" autocomplete="name" required
-                           value="{{ user.name|default('') }}">
+                           value="{{ request.form.get('name', user.name) }}">
                 </div>
                 <div class="form-group">
                     <label for="email">Электронная почта</label>
                     <input id="email" name="email" type="email" autocomplete="email" required
-                           value="{{ user.email|default('') }}">
+                           value="{{ request.form.get('email', user.email) }}">
                 </div>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Номер телефона <span class="optional">необязательно</span></label>
+                <input id="phone" name="phone" type="tel" autocomplete="tel"
+                       value="{{ request.form.get('phone', user.phone or '') }}"
+                       placeholder="+7 900 000-00-00">
+                <small>Можно использовать цифры, пробелы, скобки, плюс и дефис.</small>
             </div>
 
             <div class="form-grid form-grid--two">
                 <div class="form-group">
                     <label for="currency">Валюта</label>
+                    {% set current_currency = request.form.get('currency', user.currency) %}
                     <select id="currency" name="currency">
-                        <option value="RUB">Российский рубль (₽)</option>
-                        <option value="USD">Доллар США ($)</option>
-                        <option value="EUR">Евро (€)</option>
+                        <option value="RUB" {% if current_currency == 'RUB' %}selected{% endif %}>Российский рубль (₽)</option>
+                        <option value="USD" {% if current_currency == 'USD' %}selected{% endif %}>Доллар США ($)</option>
+                        <option value="EUR" {% if current_currency == 'EUR' %}selected{% endif %}>Евро (€)</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="week_start">Начало недели</label>
+                    {% set current_week_start = request.form.get('week_start', user.week_start) %}
                     <select id="week_start" name="week_start">
-                        <option value="monday">Понедельник</option>
-                        <option value="sunday">Воскресенье</option>
+                        <option value="monday" {% if current_week_start == 'monday' %}selected{% endif %}>Понедельник</option>
+                        <option value="sunday" {% if current_week_start == 'sunday' %}selected{% endif %}>Воскресенье</option>
                     </select>
                 </div>
             </div>
@@ -57,9 +68,29 @@
     </section>
 
     <aside class="card info-card">
-        <h2>Безопасность</h2>
-        <p>Используйте уникальный пароль и никому его не сообщайте.</p>
-        <a class="button button--outline button--full" href="/settings/password">Изменить пароль</a>
+        <div class="section-heading">
+            <h2>Изменить пароль</h2>
+            <p>Используйте новый уникальный пароль длиной от 8 символов.</p>
+        </div>
+        <form method="post" action="{{ url_for('settings.password_change') }}" class="form-stack">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="current_password">Текущий пароль</label>
+                <input id="current_password" name="current_password" type="password"
+                       autocomplete="current-password" required>
+            </div>
+            <div class="form-group">
+                <label for="new_password">Новый пароль</label>
+                <input id="new_password" name="new_password" type="password"
+                       autocomplete="new-password" minlength="8" required>
+            </div>
+            <div class="form-group">
+                <label for="new_password_confirm">Повторите новый пароль</label>
+                <input id="new_password_confirm" name="new_password_confirm" type="password"
+                       autocomplete="new-password" minlength="8" required>
+            </div>
+            <button class="button button--outline button--full" type="submit">Обновить пароль</button>
+        </form>
     </aside>
 </div>
 {% endblock %}

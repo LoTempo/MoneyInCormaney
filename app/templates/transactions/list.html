@@ -9,7 +9,7 @@
         <h1>Операции</h1>
         <p>Все доходы и расходы вашей семьи.</p>
     </div>
-    <a class="button button--primary" href="/transactions/new">Добавить операцию</a>
+    <a class="button button--primary" href="{{ url_for('transactions.transaction_create') }}">Добавить операцию</a>
 </div>
 
 <section class="card filter-card">
@@ -17,14 +17,14 @@
         <div class="form-group">
             <label for="type">Тип</label>
             <select id="type" name="type">
-                <option value="">Все операции</option>
-                <option value="income">Доходы</option>
-                <option value="expense">Расходы</option>
+                <option value="" {% if not selected_type %}selected{% endif %}>Все операции</option>
+                <option value="income" {% if selected_type == 'income' %}selected{% endif %}>Доходы</option>
+                <option value="expense" {% if selected_type == 'expense' %}selected{% endif %}>Расходы</option>
             </select>
         </div>
         <div class="form-group">
             <label for="month">Месяц</label>
-            <input id="month" name="month" type="month">
+            <input id="month" name="month" type="month" value="{{ selected_month }}">
         </div>
         <div class="form-group filter-action">
             <button class="button button--outline" type="submit">Применить</button>
@@ -33,7 +33,7 @@
 </section>
 
 <section class="card content-card">
-    {% if transactions|default([]) %}
+    {% if transactions %}
         <div class="table-wrap">
             <table>
                 <thead>
@@ -52,12 +52,18 @@
                             <td>{{ transaction.description }}</td>
                             <td><span class="tag">{{ transaction.category }}</span></td>
                             <td>{{ transaction.member }}</td>
-                            <td>{{ transaction.date }}</td>
-                            <td class="align-right amount amount--{{ transaction.type }}">
-                                {{ transaction.amount }}
-                            </td>
-                            <td class="align-right">
-                                <a class="table-link" href="/transactions/{{ transaction.id }}/edit">Изменить</a>
+                            <td>{{ transaction.date.strftime('%d.%m.%Y') }}</td>
+                            <td class="align-right amount amount--{{ transaction.type }}">{{ transaction.amount }}</td>
+                            <td>
+                                <div class="row-actions row-actions--end">
+                                    <a class="table-link" href="{{ url_for('transactions.transaction_edit', transaction_id=transaction.id) }}">Изменить</a>
+                                    <form method="post"
+                                          action="{{ url_for('transactions.transaction_delete', transaction_id=transaction.id) }}"
+                                          data-confirm="Удалить операцию «{{ transaction.description }}»?">
+                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                        <button class="link-button link-button--danger" type="submit">Удалить</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     {% endfor %}
@@ -67,9 +73,9 @@
     {% else %}
         <div class="empty-state">
             <div class="empty-icon" aria-hidden="true">₽</div>
-            <h2>Список операций пуст</h2>
-            <p>После добавления доходов и расходов они появятся в этой таблице.</p>
-            <a class="button button--primary" href="/transactions/new">Добавить первую операцию</a>
+            <h2>Операций не найдено</h2>
+            <p>Добавьте новую операцию или измените параметры фильтра.</p>
+            <a class="button button--primary" href="{{ url_for('transactions.transaction_create') }}">Добавить операцию</a>
         </div>
     {% endif %}
 </section>

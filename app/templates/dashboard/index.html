@@ -9,7 +9,7 @@
         <h1>Обзор бюджета</h1>
         <p>Краткая картина семейных доходов и расходов.</p>
     </div>
-    <a class="button button--primary" href="/transactions/new">Добавить операцию</a>
+    <a class="button button--primary" href="{{ url_for('transactions.transaction_create') }}">Добавить операцию</a>
 </div>
 
 <section class="balance-hero" aria-labelledby="balance-title">
@@ -45,7 +45,7 @@
             <h2>Последние операции</h2>
             <p>Недавно добавленные доходы и расходы.</p>
         </div>
-        <a class="text-link" href="/transactions">Посмотреть все</a>
+        <a class="text-link" href="{{ url_for('transactions.transaction_list') }}">Посмотреть все</a>
     </div>
 
     {% if recent_transactions|default([]) %}
@@ -64,7 +64,7 @@
                         <tr>
                             <td>{{ transaction.description }}</td>
                             <td><span class="tag">{{ transaction.category }}</span></td>
-                            <td>{{ transaction.date }}</td>
+                            <td>{{ transaction.date.strftime('%d.%m.%Y') }}</td>
                             <td class="align-right amount amount--{{ transaction.type }}">
                                 {{ transaction.amount }}
                             </td>
@@ -78,7 +78,7 @@
             <div class="empty-icon" aria-hidden="true">₽</div>
             <h3>Операций пока нет</h3>
             <p>Добавьте первый доход или расход, чтобы здесь появилась статистика.</p>
-            <a class="button button--outline" href="/transactions/new">Добавить операцию</a>
+            <a class="button button--outline" href="{{ url_for('transactions.transaction_create') }}">Добавить операцию</a>
         </div>
     {% endif %}
 </section>
