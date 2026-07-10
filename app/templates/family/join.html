@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Вступление в семью — Семейный бюджет{% endblock %}
+{% block body_class %}family-theme{% endblock %}
 
 {% block content %}
 <div class="narrow-content">
@@ -12,7 +13,7 @@
         </div>
     </div>
 
-    <section class="card form-card">
+    <section class="card form-card family-surface">
         <form method="post" class="form-stack">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
@@ -25,7 +26,7 @@
 
             <div class="form-actions">
                 <a class="button button--ghost" href="{{ url_for('family.family_create') }}">Создать новую семью</a>
-                <button class="button button--primary" type="submit">Присоединиться</button>
+                <button class="button button--family" type="submit">Присоединиться</button>
             </div>
         </form>
     </section>

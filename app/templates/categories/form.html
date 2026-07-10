@@ -1,80 +1,22 @@
 {% extends "base.html" %}
-
 {% set is_editing = category is defined and category %}
+{% set current_scope = request.form.get('scope', category.scope if is_editing else request.args.get('scope', 'personal')) %}
 {% set current_type = request.form.get('type', category.type if is_editing else 'expense') %}
 {% set current_parent = request.form.get('parent_id', category.parent_id if is_editing and category.parent_id else '') %}
 {% block title %}{{ "Изменение категории" if is_editing else "Новая категория" }} — Семейный бюджет{% endblock %}
-
 {% block content %}
-<div class="narrow-content">
-    <div class="page-heading">
-        <div>
-            <span class="eyebrow">Справочник</span>
-            <h1>{{ "Изменить категорию" if is_editing else "Новая категория" }}</h1>
-            <p>Выберите родительскую категорию, если хотите создать подкатегорию.</p>
-        </div>
-    </div>
-
-    <section class="card form-card">
-        <form method="post" class="form-stack">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-
-            <div class="form-group">
-                <label for="name">Название</label>
-                <input id="name" name="name" type="text" maxlength="80" required
-                       value="{{ request.form.get('name', category.name if is_editing else '') }}"
-                       placeholder="Например, Продукты">
-            </div>
-
-            <div class="form-group">
-                <span class="field-label">Тип категории</span>
-                <div class="choice-grid" data-category-type-controls>
-                    <label class="choice-card">
-                        <input name="type" type="radio" value="expense" required
-                               {% if current_type == 'expense' %}checked{% endif %}>
-                        <span>Для расходов</span>
-                    </label>
-                    <label class="choice-card">
-                        <input name="type" type="radio" value="income" required
-                               {% if current_type == 'income' %}checked{% endif %}>
-                        <span>Для доходов</span>
-                    </label>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="parent_id">Родительская категория <span class="optional">необязательно</span></label>
-                <select id="parent_id" name="parent_id" data-parent-category-select>
-                    <option value="">Нет — это основная категория</option>
-                    {% for parent in parent_options %}
-                        <option value="{{ parent.id }}" data-category-type="{{ parent.type }}"
-                                {% if current_parent|string == parent.id|string %}selected{% endif %}>
-                            {{ parent.display_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-                <small>В списке доступны только категории того же типа.</small>
-            </div>
-
-            <div class="form-grid form-grid--two">
-                <div class="form-group">
-                    <label for="icon">Символ <span class="optional">необязательно</span></label>
-                    <input id="icon" name="icon" type="text" maxlength="2"
-                           value="{{ request.form.get('icon', category.icon if is_editing and category.icon else '') }}"
-                           placeholder="₽">
-                </div>
-                <div class="form-group">
-                    <label for="color">Цвет</label>
-                    <input id="color" name="color" type="color"
-                           value="{{ request.form.get('color', category.color if is_editing else '#2563eb') }}">
-                </div>
-            </div>
-
-            <div class="form-actions">
-                <a class="button button--ghost" href="{{ url_for('categories.category_list') }}">Отмена</a>
-                <button class="button button--primary" type="submit">Сохранить категорию</button>
-            </div>
-        </form>
-    </section>
-</div>
+<div class="narrow-content"><div class="page-heading"><div><span class="eyebrow">Справочник</span><h1>{{ "Изменить категорию" if is_editing else "Новая категория" }}</h1><p>Категории личного и семейного бюджетов хранятся отдельно.</p></div></div>
+<section class="card form-card {% if current_scope == 'family' %}family-surface{% endif %}"><form method="post" class="form-stack" data-category-form>
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group"><span class="field-label">Бюджет</span>{% if is_editing %}<input type="hidden" name="scope" value="{{ current_scope }}"><div class="scope-display {% if current_scope == 'family' %}scope-display--family{% endif %}">{{ "Семейный" if current_scope == 'family' else "Личный" }}</div>{% else %}<div class="choice-grid" data-scope-controls><label class="choice-card"><input name="scope" type="radio" value="personal" {% if current_scope == 'personal' %}checked{% endif %}><span>Личный</span></label>{% if g.family %}<label class="choice-card choice-card--family"><input name="scope" type="radio" value="family" {% if current_scope == 'family' %}checked{% endif %}><span>Семейный</span></label>{% endif %}</div>{% endif %}</div>
+    <div class="form-group"><label for="name">Название</label><input id="name" name="name" type="text" maxlength="80" required value="{{ request.form.get('name', category.name if is_editing else '') }}" placeholder="Например, Продукты"></div>
+    <div class="form-group"><span class="field-label">Тип категории</span><div class="choice-grid choice-grid--three" data-category-type-controls>
+        <label class="choice-card"><input name="type" type="radio" value="expense" data-category-type="expense" {% if current_type == 'expense' %}checked{% endif %}><span>Расходы</span></label>
+        <label class="choice-card"><input name="type" type="radio" value="income" data-category-type="income" {% if current_type == 'income' %}checked{% endif %}><span>Доходы</span></label>
+        <label class="choice-card"><input name="type" type="radio" value="savings" data-category-type="savings" {% if current_type == 'savings' %}checked{% endif %}><span>Сбережения</span></label>
+    </div></div>
+    <div class="form-group"><label for="parent_id">Родительская категория <span class="optional">необязательно</span></label><select id="parent_id" name="parent_id" data-parent-category-select><option value="">Нет — это основная категория</option>{% for parent in parent_options %}<option value="{{ parent.id }}" data-category-type="{{ parent.type }}" data-category-scope="{{ parent.scope }}" {% if current_parent|string == parent.id|string %}selected{% endif %}>{{ "Семья · " if parent.scope == 'family' else "Личное · " }}{{ parent.display_name }}</option>{% endfor %}</select><small>Родитель должен быть из того же бюджета и иметь тот же тип.</small></div>
+    <div class="form-grid form-grid--two"><div class="form-group"><label for="icon">Символ</label><input id="icon" name="icon" type="text" maxlength="2" value="{{ request.form.get('icon', category.icon if is_editing and category.icon else '') }}" placeholder="₽"></div><div class="form-group"><label for="color">Цвет</label><input id="color" name="color" type="color" value="{{ request.form.get('color', category.color if is_editing else '#2563eb') }}"></div></div>
+    <div class="form-actions"><a class="button button--ghost" href="{{ url_for('categories.category_list') }}">Отмена</a><button class="button {% if current_scope == 'family' %}button--family{% else %}button--primary{% endif %}" type="submit">Сохранить категорию</button></div>
+</form></section></div>
 {% endblock %}

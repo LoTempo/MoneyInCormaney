@@ -1,7 +1,12 @@
 import unittest
 
 from app import create_app
-from app.utils import format_money, parse_positive_amount, valid_phone
+from app.utils import (
+    format_money,
+    parse_nonnegative_amount,
+    parse_positive_amount,
+    valid_phone,
+)
 
 
 class BasicApplicationTest(unittest.TestCase):
@@ -26,6 +31,9 @@ class BasicApplicationTest(unittest.TestCase):
             "/",
             "/transactions",
             "/transactions/new",
+            "/analytics",
+            "/budget/personal",
+            "/budget/family",
             "/categories",
             "/categories/new",
             "/family",
@@ -71,6 +79,8 @@ class UtilityTest(unittest.TestCase):
         self.assertIsNone(parse_positive_amount("-1"))
         self.assertIsNone(parse_positive_amount("1.999"))
         self.assertIsNone(parse_positive_amount("NaN"))
+        self.assertEqual(str(parse_nonnegative_amount("0")), "0")
+        self.assertIsNone(parse_nonnegative_amount("-0.01"))
 
     def test_phone_validation(self):
         self.assertTrue(valid_phone("+7 900 000-00-00"))

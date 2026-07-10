@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% set is_family = scope == 'family' %}
+{% block title %}{{ "Семейный" if is_family else "Личный" }} бюджет — Семейный бюджет{% endblock %}
+{% block body_class %}{% if is_family %}family-theme{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">{{ "Общие данные семьи" if is_family else "Только ваши данные" }}</span>
+        <h1>{{ "Семейный" if is_family else "Личный" }} бюджет</h1>
+        <p>Показатели текущего месяца и актуальное состояние сбережений.</p>
+    </div>
+    <div class="heading-actions">
+        <a class="button button--outline" href="{{ url_for('analytics.index', scope=scope) }}">Аналитика</a>
+        <a class="button {% if is_family %}button--family{% else %}button--primary{% endif %}" href="{{ url_for('transactions.transaction_create', scope=scope) }}">Добавить операцию</a>
+    </div>
+</div>
+
+<section class="scope-hero {% if is_family %}scope-hero--family{% endif %}">
+    <div>
+        <span>Остаток месячного лимита</span>
+        <strong class="{% if summary.balance_negative %}amount--negative{% endif %}">{{ summary.balance }}</strong>
+        <small>Лимит: {{ summary.limit }}</small>
+    </div>
+    {% if not is_family or g.family.role == 'owner' %}
+        <form class="limit-form limit-form--hero" method="post" action="{{ url_for('dashboard.update_limit', scope=scope) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_to" value="{{ scope }}">
+            <label for="scope_limit">Изменить лимит</label>
+            <div class="limit-form__controls">
+                <input id="scope_limit" name="spending_limit" type="number" min="0" step="0.01" required
+                       value="{{ summary.limit_raw if summary.limit_set else '' }}" placeholder="0,00">
+                <button class="button {% if is_family %}button--family{% else %}button--primary{% endif %}" type="submit">Сохранить</button>
+            </div>
+        </form>
+    {% endif %}
+</section>
+
+<section class="stats-grid stats-grid--four">
+    <article class="card stat-card"><span class="stat-label">Лимит</span><strong>{{ summary.limit }}</strong></article>
+    <article class="card stat-card"><span class="stat-label">Доходы</span><strong class="amount--income">{{ summary.income }}</strong></article>
+    <article class="card stat-card"><span class="stat-label">Расходы</span><strong class="amount--expense">{{ summary.expenses }}</strong></article>
+    <article class="card stat-card"><span class="stat-label">Сбережения</span><strong class="amount--savings">{{ summary.savings }}</strong></article>
+</section>
+
+<section class="card content-card {% if is_family %}family-surface{% endif %}">
+    <div class="section-heading"><h2>Операции бюджета</h2><p>Последние двадцать записей.</p></div>
+    {% if transactions %}
+        <div class="table-wrap"><table>
+            <thead><tr><th>Описание</th><th>Тип</th><th>Автор</th><th>Дата</th><th class="align-right">Сумма</th></tr></thead>
+            <tbody>{% for transaction in transactions %}
+                <tr class="{% if is_family %}family-row{% endif %}">
+                    <td>{{ transaction.description }}{% if is_family %} <span class="tag tag--family"># Семейная</span>{% endif %}</td>
+                    <td>{{ transaction.type_label }}</td><td>{{ transaction.member }}</td>
+                    <td>{{ transaction.date.strftime('%d.%m.%Y') }}</td>
+                    <td class="align-right amount amount--{{ transaction.type }}">{{ transaction.amount }}</td>
+                </tr>
+            {% endfor %}</tbody>
+        </table></div>
+    {% else %}<div class="empty-state"><h3>Операций пока нет</h3></div>{% endif %}
+</section>
+{% endblock %}

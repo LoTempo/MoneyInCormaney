@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Аналитика — Семейный бюджет{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+    <div><span class="eyebrow">Динамика финансов</span><h1>Аналитика</h1><p>Сравнивайте доходы, расходы и сбережения за удобный интервал.</p></div>
+</div>
+
+<section class="card filter-card analytics-filter">
+    <form method="get" class="analytics-filter__grid" data-analytics-filter>
+        <div class="form-group"><label for="scope">Данные</label><select id="scope" name="scope">
+            <option value="personal" {% if selected_scope == 'personal' %}selected{% endif %}>Личные</option>
+            {% if g.family %}<option value="family" {% if selected_scope == 'family' %}selected{% endif %}>Семейные</option><option value="all" {% if selected_scope == 'all' %}selected{% endif %}>Сравнить</option>{% endif %}
+        </select></div>
+        <div class="form-group"><label for="period">Интервал</label><select id="period" name="period" data-period-select>
+            {% for value, label in [('day','Сегодня'),('week','7 дней'),('month','Месяц'),('quarter','Квартал'),('year','Год'),('all','Всё время'),('custom','Свои даты')] %}
+                <option value="{{ value }}" {% if selected_period == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select></div>
+        <div class="form-group"><label for="group_by">Группировка</label><select id="group_by" name="group_by">
+            {% for value, label in [('auto','Автоматически'),('day','По дням'),('week','По неделям'),('month','По месяцам'),('year','По годам')] %}
+                <option value="{{ value }}" {% if selected_grouping == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select></div>
+        <div class="form-group analytics-custom-date" data-custom-date><label for="date_from">С даты</label><input id="date_from" name="date_from" type="date" value="{{ date_from }}"></div>
+        <div class="form-group analytics-custom-date" data-custom-date><label for="date_to">По дату</label><input id="date_to" name="date_to" type="date" value="{{ date_to }}"></div>
+        <div class="form-group filter-action"><button class="button button--primary" type="submit">Показать</button></div>
+    </form>
+</section>
+
+{% for item in series %}
+<section class="analytics-series {% if item.scope == 'family' %}analytics-series--family{% endif %}">
+    <div class="section-heading section-heading--row"><div><span class="eyebrow">{{ "Семейные данные" if item.scope == 'family' else "Личные данные" }}</span><h2>{{ "Семейная" if item.scope == 'family' else "Личная" }} статистика</h2></div><span class="tag {% if item.scope == 'family' %}tag--family{% endif %}">Группировка: {{ effective_grouping }}</span></div>
+    <div class="analytics-kpis">
+        <article class="card stat-card"><span>Доходы</span><strong class="amount--income">{{ item.totals.income_display }}</strong></article>
+        <article class="card stat-card"><span>Расходы</span><strong class="amount--expense">{{ item.totals.expenses_display }}</strong></article>
+        <article class="card stat-card"><span>Состояние сбережений</span><strong class="amount--savings">{{ item.savings_state }}</strong></article>
+        <article class="card stat-card"><span>Изменение сбережений</span><strong>{{ item.totals.savings_change_display }}</strong></article>
+        <article class="card stat-card"><span>Остаток лимита</span><strong class="{% if item.balance_negative %}amount--negative{% endif %}">{{ item.balance }}</strong></article>
+    </div>
+
+    <div class="analytics-layout">
+        <div class="card content-card">
+            <div class="section-heading"><h3>Динамика</h3><p>Длина полосы показывает относительный размер суммы.</p></div>
+            {% if item.rows %}<div class="chart-list">
+                {% for row in item.rows %}<div class="chart-row"><strong>{{ row.label }}</strong>
+                    <div class="chart-metric"><span>Доходы</span><progress class="progress--income" value="{{ row.income }}" max="{{ item.max_value }}"></progress><small>{{ row.income_display }}</small></div>
+                    <div class="chart-metric"><span>Расходы</span><progress class="progress--expense" value="{{ row.expenses }}" max="{{ item.max_value }}"></progress><small>{{ row.expenses_display }}</small></div>
+                    <div class="chart-metric"><span>В сбережения</span><progress class="progress--savings" value="{{ row.savings_deposits }}" max="{{ item.max_value }}"></progress><small>{{ row.savings_deposits_display }}</small></div>
+                </div>{% endfor %}
+            </div>{% else %}<div class="empty-state"><h3>Нет данных за выбранный период</h3></div>{% endif %}
+        </div>
+        <aside class="card content-card"><div class="section-heading"><h3>Крупные категории расходов</h3></div>
+            {% if item.categories %}<ol class="category-ranking">{% for category in item.categories %}<li><span>{{ category.name }}</span><strong>{{ category.amount_display }}</strong></li>{% endfor %}</ol>{% else %}<p class="muted-text">Расходов нет.</p>{% endif %}
+        </aside>
+    </div>
+</section>
+{% endfor %}
+{% endblock %}

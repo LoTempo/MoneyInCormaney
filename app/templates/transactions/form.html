@@ -1,92 +1,72 @@
 {% extends "base.html" %}
 
 {% set is_editing = transaction is defined and transaction %}
-{% set current_type = request.form.get('type', transaction.type if is_editing else 'expense') %}
+{% set initial_scope = transaction.scope if is_editing else request.args.get('scope', 'personal') %}
+{% set current_scope = request.form.get('scope', initial_scope) %}
+{% set initial_type = ('expense' if is_editing and transaction.type == 'savings_withdrawal' else transaction.type if is_editing else 'expense') %}
+{% set current_type = request.form.get('type', initial_type) %}
+{% set initial_source = ('savings' if is_editing and transaction.type == 'savings_withdrawal' else 'budget') %}
+{% set current_source = request.form.get('expense_source', initial_source) %}
 {% set current_category = request.form.get('category_id', transaction.category_id if is_editing else '') %}
 {% block title %}{{ "Изменение" if is_editing else "Новая операция" }} — Семейный бюджет{% endblock %}
 
 {% block content %}
 <div class="narrow-content">
-    <div class="page-heading">
-        <div>
-            <span class="eyebrow">{{ "Редактирование" if is_editing else "Новая запись" }}</span>
-            <h1>{{ "Изменить операцию" if is_editing else "Добавить операцию" }}</h1>
-            <p>Укажите основные сведения о доходе или расходе.</p>
-        </div>
-    </div>
+    <div class="page-heading"><div><span class="eyebrow">{{ "Редактирование" if is_editing else "Новая запись" }}</span><h1>{{ "Изменить операцию" if is_editing else "Добавить операцию" }}</h1><p>Сначала выберите личный или семейный бюджет, затем тип операции.</p></div></div>
 
-    <section class="card form-card">
-        <form method="post" class="form-stack">
+    <section class="card form-card {% if current_scope == 'family' %}family-surface{% endif %}">
+        <form method="post" class="form-stack" data-transaction-form>
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
             <div class="form-group">
+                <span class="field-label">Бюджет</span>
+                {% if is_editing %}
+                    <input type="hidden" name="scope" value="{{ current_scope }}">
+                    <div class="scope-display {% if current_scope == 'family' %}scope-display--family{% endif %}">{{ "Семейный бюджет" if current_scope == 'family' else "Личный бюджет" }}</div>
+                {% else %}
+                    <div class="choice-grid" data-scope-controls>
+                        <label class="choice-card"><input name="scope" type="radio" value="personal" {% if current_scope == 'personal' %}checked{% endif %}><span>Личный</span></label>
+                        {% if g.family %}<label class="choice-card choice-card--family"><input name="scope" type="radio" value="family" {% if current_scope == 'family' %}checked{% endif %}><span>Семейный</span></label>{% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
                 <span class="field-label">Тип операции</span>
-                <div class="choice-grid" data-category-type-controls>
-                    <label class="choice-card">
-                        <input name="type" type="radio" value="expense" required
-                               {% if current_type == 'expense' %}checked{% endif %}>
-                        <span>Расход</span>
-                    </label>
-                    <label class="choice-card">
-                        <input name="type" type="radio" value="income" required
-                               {% if current_type == 'income' %}checked{% endif %}>
-                        <span>Доход</span>
-                    </label>
+                <div class="choice-grid choice-grid--three" data-category-type-controls>
+                    <label class="choice-card"><input name="type" type="radio" value="expense" data-category-type="expense" {% if current_type == 'expense' %}checked{% endif %}><span>Расход</span></label>
+                    <label class="choice-card"><input name="type" type="radio" value="income" data-category-type="income" {% if current_type == 'income' %}checked{% endif %}><span>Доход</span></label>
+                    <label class="choice-card"><input name="type" type="radio" value="savings_deposit" data-category-type="savings" {% if current_type == 'savings_deposit' %}checked{% endif %}><span>В сбережения</span></label>
                 </div>
             </div>
 
+            <div class="form-group" data-expense-source>
+                <span class="field-label">Источник расхода</span>
+                <div class="choice-grid">
+                    <label class="choice-card"><input name="expense_source" type="radio" value="budget" {% if current_source == 'budget' %}checked{% endif %}><span>Месячный лимит</span></label>
+                    <label class="choice-card"><input name="expense_source" type="radio" value="savings" {% if current_source == 'savings' %}checked{% endif %}><span>Сбережения</span></label>
+                </div>
+                <small>Расход из сбережений уменьшает накопления, но не месячный лимит.</small>
+            </div>
+
             <div class="form-grid form-grid--two">
-                <div class="form-group">
-                    <label for="amount">Сумма</label>
-                    <div class="input-with-suffix">
-                        <input id="amount" name="amount" type="number" min="0.01" step="0.01" required
-                               value="{{ request.form.get('amount', transaction.amount if is_editing else '') }}"
-                               placeholder="0,00">
-                        <span>{{ {'RUB': '₽', 'USD': '$', 'EUR': '€'}.get(g.user.currency, g.user.currency) }}</span>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="date">Дата</label>
-                    <input id="date" name="date" type="date" required
-                           value="{{ request.form.get('date', transaction.date if is_editing else today) }}">
-                </div>
+                <div class="form-group"><label for="amount">Сумма</label><div class="input-with-suffix"><input id="amount" name="amount" type="number" min="0.01" step="0.01" required value="{{ request.form.get('amount', transaction.amount if is_editing else '') }}" placeholder="0,00"><span>{{ {'RUB': '₽', 'USD': '$', 'EUR': '€'}.get(g.user.currency, g.user.currency) }}</span></div></div>
+                <div class="form-group"><label for="date">Дата</label><input id="date" name="date" type="date" required value="{{ request.form.get('date', transaction.date if is_editing else today) }}"></div>
             </div>
 
             <div class="form-group">
                 <label for="category_id">Категория или подкатегория</label>
                 <select id="category_id" name="category_id" required data-category-select>
                     <option value="">Выберите категорию</option>
-                    {% for category in categories %}
-                        <option value="{{ category.id }}" data-category-type="{{ category.type }}"
-                                {% if current_category|string == category.id|string %}selected{% endif %}>
-                            {{ category.display_name }}
-                        </option>
-                    {% endfor %}
+                    {% for category in categories %}<option value="{{ category.id }}" data-category-type="{{ category.type }}" data-category-scope="{{ category.scope }}" {% if current_category|string == category.id|string %}selected{% endif %}>{{ "Семья · " if category.scope == 'family' else "Личное · " }}{{ category.display_name }}</option>{% endfor %}
                 </select>
-                {% if not categories %}
-                    <small>Сначала <a href="{{ url_for('categories.category_create') }}">создайте категорию</a>.</small>
-                {% endif %}
+                {% if not categories %}<small>Сначала <a href="{{ url_for('categories.category_create') }}">создайте категорию</a>.</small>{% endif %}
             </div>
 
-            <div class="form-group">
-                <label for="description">Описание</label>
-                <input id="description" name="description" type="text" maxlength="200" required
-                       value="{{ request.form.get('description', transaction.description if is_editing else '') }}"
-                       placeholder="Например, продукты на неделю">
-            </div>
+            <div class="form-group"><label for="description">Описание</label><input id="description" name="description" type="text" maxlength="200" required value="{{ request.form.get('description', transaction.description if is_editing else '') }}" placeholder="Например, продукты на неделю"></div>
+            <div class="form-group"><label for="note">Комментарий <span class="optional">необязательно</span></label><textarea id="note" name="note" rows="4" maxlength="2000" placeholder="Дополнительная информация">{{ request.form.get('note', transaction.note if is_editing and transaction.note else '') }}</textarea></div>
 
-            <div class="form-group">
-                <label for="note">Комментарий <span class="optional">необязательно</span></label>
-                <textarea id="note" name="note" rows="4" maxlength="2000"
-                          placeholder="Дополнительная информация">{{ request.form.get('note', transaction.note if is_editing and transaction.note else '') }}</textarea>
-            </div>
-
-            <div class="form-actions">
-                <a class="button button--ghost" href="{{ url_for('transactions.transaction_list') }}">Отмена</a>
-                <button class="button button--primary" type="submit">
-                    {{ "Сохранить изменения" if is_editing else "Добавить операцию" }}
-                </button>
-            </div>
+            <div class="form-actions"><a class="button button--ghost" href="{{ url_for('transactions.transaction_list') }}">Отмена</a><button class="button {% if current_scope == 'family' %}button--family{% else %}button--primary{% endif %}" type="submit">{{ "Сохранить изменения" if is_editing else "Добавить операцию" }}</button></div>
         </form>
     </section>
 </div>

@@ -1,48 +1,22 @@
 {% extends "base.html" %}
-
-{% block title %}Моя семья — Семейный бюджет{% endblock %}
-
+{% block title %}Семья — Семейный бюджет{% endblock %}
+{% block body_class %}family-theme{% endblock %}
 {% block content %}
-<div class="page-heading">
-    <div>
-        <span class="eyebrow">Общее пространство</span>
-        <h1>{{ family.name|default("Моя семья") }}</h1>
-        <p>Участники семейного бюджета и приглашения.</p>
-    </div>
-</div>
-
+{% if not family %}
+<div class="page-heading"><div><span class="eyebrow">Необязательная возможность</span><h1>Семейный бюджет</h1><p>Вы можете продолжать пользоваться личным бюджетом без создания семьи.</p></div></div>
+<section class="family-welcome"><article class="card family-surface content-card"><h2>Создать семейное пространство</h2><p>Получите код и пригласите близких для совместных категорий, лимита и операций.</p><a class="button button--family" href="{{ url_for('family.family_create') }}">Создать семью</a></article><article class="card content-card"><h2>Присоединиться по коду</h2><p>Если близкий уже создал семью, используйте полученный код.</p><a class="button button--family-outline" href="{{ url_for('family.family_join') }}">Ввести код</a></article></section>
+{% else %}
+<div class="page-heading"><div><span class="eyebrow">Общее пространство</span><h1>{{ family.name }}</h1><p>Все семейные элементы обозначены фиолетовым цветом.</p></div><a class="button button--family" href="{{ url_for('dashboard.family_budget') }}">Семейный бюджет</a></div>
 <div class="family-layout">
-    <section class="card content-card">
-        <div class="section-heading">
-            <h2>Участники</h2>
-            <p>{{ members|default([])|length }} человек в семейном пространстве.</p>
-        </div>
-
-        {% if members|default([]) %}
-            <div class="member-list">
-                {% for member in members %}
-                    <div class="member-row">
-                        <div class="avatar" aria-hidden="true">{{ member.name[:1]|upper }}</div>
-                        <div class="member-info">
-                            <strong>{{ member.name }}</strong>
-                            <span>{{ member.email }}</span>
-                            {% if member.phone %}<span>{{ member.phone }}</span>{% endif %}
-                        </div>
-                        {% if member.is_owner %}<span class="tag">Владелец</span>{% endif %}
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="muted-text">Список участников пока пуст.</p>
-        {% endif %}
-    </section>
-
-    <aside class="card invite-card">
-        <span class="eyebrow">Пригласить близких</span>
-        <h2>Код семьи</h2>
-        <div class="invite-code">{{ family.invite_code }}</div>
-        <p>Передайте этот код человеку, которого хотите добавить в семейный бюджет.</p>
-        <small>Не публикуйте код в открытом доступе.</small>
-    </aside>
+    <section class="card content-card family-surface"><div class="section-heading"><h2>Участники</h2><p>{{ members|length }} человек в семейном пространстве.</p></div><div class="member-list">
+        {% for member in members %}<div class="member-row"><div class="avatar avatar--family">{{ member.name[:1]|upper }}</div><div class="member-info"><strong>{{ member.name }} {% if member.is_current_user %}(вы){% endif %}</strong><span>{{ member.email }}</span>{% if member.phone %}<span>{{ member.phone }}</span>{% endif %}</div>{% if member.is_owner %}<span class="tag tag--family">Владелец</span>{% endif %}
+            {% if g.family.role == 'owner' and not member.is_current_user %}<div class="member-actions"><form method="post" action="{{ url_for('family.family_transfer_owner', user_id=member.id) }}" data-confirm="Передать права владельца пользователю {{ member.name }}?"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="link-button" type="submit">Сделать владельцем</button></form><form method="post" action="{{ url_for('family.family_remove_member', user_id=member.id) }}" data-confirm="Удалить {{ member.name }} из семьи?"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="link-button link-button--danger" type="submit">Удалить</button></form></div>{% endif %}
+        </div>{% endfor %}
+    </div></section>
+    <aside class="card invite-card"><span class="eyebrow">Пригласить близких</span><h2>Код семьи</h2><div class="invite-code">{{ family.invite_code }}</div><p>Передайте код только тем, кого хотите добавить.</p></aside>
 </div>
+<section class="card family-danger-zone"><div><h2>{{ "Управление семьёй" if g.family.role == 'owner' else "Выйти из семьи" }}</h2>{% if g.family.role == 'owner' %}<p>Передайте права другому участнику перед выходом. Если семья больше не нужна, удаление уничтожит только общие данные — личные сохранятся.</p>{% else %}<p>Ваши личные категории и операции сохранятся. Доступ к общим данным будет закрыт.</p>{% endif %}</div>
+    {% if g.family.role == 'owner' %}<form method="post" action="{{ url_for('family.family_dissolve') }}" data-confirm="Навсегда удалить семейное пространство и все общие данные?"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><label for="family_name">Введите название семьи для подтверждения</label><div class="limit-form__controls"><input id="family_name" name="family_name" required autocomplete="off"><button class="button button--danger" type="submit">Удалить семью</button></div></form>{% else %}<form method="post" action="{{ url_for('family.family_leave') }}" data-confirm="Выйти из семьи?"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="button button--danger" type="submit">Выйти из семьи</button></form>{% endif %}
+</section>
+{% endif %}
 {% endblock %}

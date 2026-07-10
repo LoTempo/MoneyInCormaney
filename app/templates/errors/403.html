@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Доступ запрещён — Семейный бюджет{% endblock %}
+{% block content %}
+<section class="error-page">
+    <div class="error-code">403</div>
+    <span class="eyebrow">Доступ запрещён</span>
+    <h1>Эту запись может изменить только её автор</h1>
+    <p>Семейные операции видны всем участникам, но редактировать и удалять их может только создавший пользователь.</p>
+    <a class="button button--primary" href="{{ url_for('dashboard.index') }}">Вернуться на главную</a>
+</section>
+{% endblock %}

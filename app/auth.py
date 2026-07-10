@@ -57,19 +57,6 @@ def login_required(view):
     return wrapped_view
 
 
-def family_required(view):
-    @wraps(view)
-    def wrapped_view(**kwargs):
-        if g.user is None:
-            return redirect(url_for("auth.login", next=request.path))
-        if g.family is None:
-            flash("Сначала создайте семью или присоединитесь по коду.", "info")
-            return redirect(url_for("family.family_create"))
-        return view(**kwargs)
-
-    return wrapped_view
-
-
 @auth_bp.route("/login", methods=("GET", "POST"))
 def login():
     if request.method == "POST":
@@ -142,8 +129,8 @@ def register():
         session.clear()
         session["user_id"] = user["id"]
         session.permanent = True
-        flash("Аккаунт создан. Теперь создайте семью или введите код приглашения.", "success")
-        return redirect(url_for("family.family_create"))
+        flash("Аккаунт создан. Личный бюджет уже готов к работе.", "success")
+        return redirect(url_for("dashboard.index"))
 
     return render_template("auth/register.html")
 

@@ -2,24 +2,27 @@ from datetime import date
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
-from app.auth import family_required
-from app.categories import flatten_category_options, get_family_categories
+from app.auth import login_required
+from app.budget import access_condition, scope_is_available
+from app.categories import flatten_category_options, get_available_categories
 from app.db import get_db
-from app.utils import format_money, parse_positive_amount
+from app.utils import format_money, parse_positive_amount, transaction_type_label
 
 
 transactions_bp = Blueprint("transactions", __name__)
 
 
 def get_transaction(transaction_id):
+    condition, parameters = access_condition("all")
     transaction = get_db().execute(
-        """
-        SELECT id, category_id, type, amount, transaction_date AS date,
-               description, note
-        FROM transactions
-        WHERE id = %s AND family_id = %s
+        f"""
+        SELECT t.id, t.scope, t.family_id, t.user_id, t.category_id,
+               t.type, t.amount, t.transaction_date AS date,
+               t.description, t.note
+        FROM transactions AS t
+        WHERE t.id = %s AND {condition}
         """,
-        (transaction_id, g.family["id"]),
+        [transaction_id] + parameters,
     ).fetchone()
     if transaction is None:
         abort(404)
@@ -27,11 +30,63 @@ def get_transaction(transaction_id):
 
 
 def get_category_options():
-    return flatten_category_options(get_family_categories())
+    return flatten_category_options(get_available_categories())
 
 
-def validate_transaction_form():
-    transaction_type = request.form.get("type", "")
+def resolve_transaction_type():
+    form_type = request.form.get("type", "")
+    expense_source = request.form.get("expense_source", "budget")
+
+    if form_type == "expense" and expense_source == "savings":
+        return "savings_withdrawal", "savings"
+    if form_type == "expense":
+        return "expense", "expense"
+    if form_type == "income":
+        return "income", "income"
+    if form_type == "savings_deposit":
+        return "savings_deposit", "savings"
+    return None, None
+
+
+def savings_balance_without(scope, excluded_transaction_id=None):
+    database = get_db()
+    if scope == "personal":
+        database.execute(
+            "SELECT id FROM users WHERE id = %s FOR UPDATE",
+            (g.user["id"],),
+        )
+    else:
+        database.execute(
+            "SELECT id FROM families WHERE id = %s FOR UPDATE",
+            (g.family["id"],),
+        )
+
+    condition, parameters = access_condition(scope)
+    excluded_sql = ""
+    if excluded_transaction_id is not None:
+        excluded_sql = "AND t.id <> %s"
+        parameters.append(excluded_transaction_id)
+
+    row = database.execute(
+        f"""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN t.type = 'savings_deposit' THEN t.amount
+                WHEN t.type = 'savings_withdrawal' THEN -t.amount
+                ELSE 0
+            END
+        ), 0) AS savings
+        FROM transactions AS t
+        WHERE {condition} {excluded_sql}
+        """,
+        parameters,
+    ).fetchone()
+    return row["savings"]
+
+
+def validate_transaction_form(existing=None):
+    scope = request.form.get("scope", "personal")
+    transaction_type, required_category_type = resolve_transaction_type()
     amount = parse_positive_amount(request.form.get("amount"))
     date_raw = request.form.get("date", "")
     category_raw = request.form.get("category_id", "")
@@ -47,7 +102,11 @@ def validate_transaction_form():
     except ValueError:
         transaction_date = None
 
-    if transaction_type not in {"income", "expense"}:
+    if not scope_is_available(scope):
+        return None, "Семейные операции доступны только участникам семьи."
+    if existing is not None and scope != existing["scope"]:
+        return None, "Область существующей операции изменить нельзя."
+    if transaction_type is None:
         return None, "Выберите тип операции."
     if amount is None:
         return None, "Сумма должна быть положительным числом с двумя знаками после запятой."
@@ -58,20 +117,49 @@ def validate_transaction_form():
     if note is not None and len(note) > 2000:
         return None, "Комментарий не должен превышать 2000 символов."
 
-    category = get_db().execute(
-        """
-        SELECT id, type
-        FROM categories
-        WHERE id = %s AND family_id = %s
-        """,
-        (category_id, g.family["id"]),
-    ).fetchone()
+    if scope == "personal":
+        category = get_db().execute(
+            """
+            SELECT id, type FROM categories
+            WHERE id = %s AND scope = 'personal' AND owner_user_id = %s
+            """,
+            (category_id, g.user["id"]),
+        ).fetchone()
+    else:
+        category = get_db().execute(
+            """
+            SELECT id, type FROM categories
+            WHERE id = %s AND scope = 'family' AND family_id = %s
+            """,
+            (category_id, g.family["id"]),
+        ).fetchone()
+
     if category is None:
-        return None, "Выберите категорию."
-    if category["type"] != transaction_type:
-        return None, "Тип категории не совпадает с типом операции."
+        return None, "Выберите категорию из нужного бюджета."
+    if category["type"] != required_category_type:
+        return None, "Категория не подходит выбранному типу операции."
+
+    existing_is_savings = existing and existing["type"] in {
+        "savings_deposit",
+        "savings_withdrawal",
+    }
+    new_is_savings = transaction_type in {"savings_deposit", "savings_withdrawal"}
+    if existing_is_savings or new_is_savings:
+        available = savings_balance_without(
+            scope,
+            existing["id"] if existing else None,
+        )
+        effect = (
+            amount
+            if transaction_type == "savings_deposit"
+            else -amount if transaction_type == "savings_withdrawal" else 0
+        )
+        if available + effect < 0:
+            return None, "Недостаточно сбережений для этой операции."
 
     return {
+        "scope": scope,
+        "family_id": g.family["id"] if scope == "family" else None,
         "type": transaction_type,
         "amount": amount,
         "date": transaction_date,
@@ -82,16 +170,27 @@ def validate_transaction_form():
 
 
 @transactions_bp.get("/transactions")
-@family_required
+@login_required
 def transaction_list():
-    transaction_type = request.args.get("type", "")
-    month = request.args.get("month", "")
-    conditions = ["t.family_id = %s"]
-    parameters = [g.family["id"]]
+    selected_scope = request.args.get("scope", "all")
+    if selected_scope not in {"personal", "family", "all"}:
+        selected_scope = "all"
+    if selected_scope == "family" and g.family is None:
+        selected_scope = "personal"
 
-    if transaction_type in {"income", "expense"}:
-        conditions.append("t.type = %s")
-        parameters.append(transaction_type)
+    selected_type = request.args.get("type", "")
+    month = request.args.get("month", "")
+    condition, parameters = access_condition(selected_scope)
+    conditions = [condition]
+
+    if selected_type == "income":
+        conditions.append("t.type = 'income'")
+    elif selected_type == "expense":
+        conditions.append("t.type IN ('expense', 'savings_withdrawal')")
+    elif selected_type == "savings":
+        conditions.append("t.type IN ('savings_deposit', 'savings_withdrawal')")
+    else:
+        selected_type = ""
 
     if month:
         try:
@@ -109,15 +208,19 @@ def transaction_list():
             month = ""
 
     query = f"""
-        SELECT t.id, t.description, t.transaction_date AS date, t.amount, t.type,
-               c.name AS category, u.name AS member
+        SELECT t.id, t.description, t.transaction_date AS date, t.amount,
+               t.type, t.scope, t.user_id, c.name AS category,
+               u.name AS member, (t.user_id = %s) AS can_edit
         FROM transactions AS t
         JOIN categories AS c ON c.id = t.category_id
         JOIN users AS u ON u.id = t.user_id
         WHERE {' AND '.join(conditions)}
         ORDER BY t.transaction_date DESC, t.created_at DESC
     """
-    transactions = get_db().execute(query, parameters).fetchall()
+    transactions = get_db().execute(
+        query,
+        [g.user["id"]] + parameters,
+    ).fetchall()
 
     for transaction in transactions:
         transaction["amount"] = format_money(
@@ -125,33 +228,37 @@ def transaction_list():
             g.user["currency"],
             transaction["type"],
         )
+        transaction["type_label"] = transaction_type_label(transaction["type"])
 
     return render_template(
         "transactions/list.html",
         transactions=transactions,
-        selected_type=transaction_type,
+        selected_scope=selected_scope,
+        selected_type=selected_type,
         selected_month=month,
     )
 
 
 @transactions_bp.route("/transactions/new", methods=("GET", "POST"))
-@family_required
+@login_required
 def transaction_create():
     if request.method == "POST":
         data, error = validate_transaction_form()
         if error is not None:
+            get_db().rollback()
             flash(error, "danger")
         else:
             database = get_db()
             database.execute(
                 """
                 INSERT INTO transactions
-                    (family_id, user_id, category_id, type, amount,
+                    (scope, family_id, user_id, category_id, type, amount,
                      transaction_date, description, note)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
-                    g.family["id"],
+                    data["scope"],
+                    data["family_id"],
                     g.user["id"],
                     data["category_id"],
                     data["type"],
@@ -176,25 +283,30 @@ def transaction_create():
     "/transactions/<int:transaction_id>/edit",
     methods=("GET", "POST"),
 )
-@family_required
+@login_required
 def transaction_edit(transaction_id):
     transaction = get_transaction(transaction_id)
+    if transaction["user_id"] != g.user["id"]:
+        abort(403)
 
     if request.method == "POST":
-        data, error = validate_transaction_form()
+        data, error = validate_transaction_form(transaction)
         if error is not None:
+            get_db().rollback()
             flash(error, "danger")
         else:
             database = get_db()
-            database.execute(
+            result = database.execute(
                 """
                 UPDATE transactions
-                SET category_id = %s, type = %s, amount = %s,
-                    transaction_date = %s, description = %s, note = %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s AND family_id = %s
+                SET scope = %s, family_id = %s, category_id = %s, type = %s,
+                    amount = %s, transaction_date = %s, description = %s,
+                    note = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND user_id = %s
                 """,
                 (
+                    data["scope"],
+                    data["family_id"],
                     data["category_id"],
                     data["type"],
                     data["amount"],
@@ -202,9 +314,12 @@ def transaction_edit(transaction_id):
                     data["description"],
                     data["note"],
                     transaction_id,
-                    g.family["id"],
+                    g.user["id"],
                 ),
             )
+            if result.rowcount != 1:
+                database.rollback()
+                abort(403)
             database.commit()
             flash("Операция обновлена.", "success")
             return redirect(url_for("transactions.transaction_list"))
@@ -218,14 +333,20 @@ def transaction_edit(transaction_id):
 
 
 @transactions_bp.post("/transactions/<int:transaction_id>/delete")
-@family_required
+@login_required
 def transaction_delete(transaction_id):
-    get_transaction(transaction_id)
+    transaction = get_transaction(transaction_id)
+    if transaction["user_id"] != g.user["id"]:
+        abort(403)
+
     database = get_db()
-    database.execute(
-        "DELETE FROM transactions WHERE id = %s AND family_id = %s",
-        (transaction_id, g.family["id"]),
+    result = database.execute(
+        "DELETE FROM transactions WHERE id = %s AND user_id = %s",
+        (transaction_id, g.user["id"]),
     )
+    if result.rowcount != 1:
+        database.rollback()
+        abort(403)
     database.commit()
     flash("Операция удалена.", "success")
     return redirect(url_for("transactions.transaction_list"))

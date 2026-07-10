@@ -3,6 +3,7 @@ import secrets
 
 from flask import Flask, abort, render_template, request, session
 
+from app.analytics import analytics_bp
 from app.auth import auth_bp
 from app.categories import categories_bp
 from app.config import Config
@@ -55,6 +56,7 @@ def create_app(test_config=None):
     app.register_blueprint(categories_bp)
     app.register_blueprint(family_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(analytics_bp)
 
     @app.after_request
     def add_security_headers(response):
@@ -80,6 +82,10 @@ def create_app(test_config=None):
     @app.errorhandler(404)
     def page_not_found(error):
         return render_template("errors/404.html"), 404
+
+    @app.errorhandler(403)
+    def forbidden(error):
+        return render_template("errors/403.html"), 403
 
     @app.errorhandler(500)
     def internal_server_error(error):
