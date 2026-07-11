@@ -4,7 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.auth import login_required
 from app.db import get_db
-from app.utils import valid_phone
+from app.utils import normalize_phone, valid_phone
 
 
 settings_bp = Blueprint("settings", __name__)
@@ -16,7 +16,7 @@ def settings_view():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip().lower()
-        phone = request.form.get("phone", "").strip() or None
+        phone_input = request.form.get("phone", "").strip()
         currency = request.form.get("currency", "")
         week_start = request.form.get("week_start", "")
 
@@ -25,8 +25,8 @@ def settings_view():
             error = "Имя должно содержать от 2 до 100 символов."
         elif "@" not in email or len(email) > 254:
             error = "Введите корректную электронную почту."
-        elif not valid_phone(phone):
-            error = "Введите корректный номер телефона."
+        elif not valid_phone(phone_input):
+            error = "Введите номер в формате +7 XXX XXX-XX-XX."
         elif currency not in {"RUB", "USD", "EUR"}:
             error = "Выберите поддерживаемую валюту."
         elif week_start not in {"monday", "sunday"}:
@@ -35,6 +35,7 @@ def settings_view():
         if error is not None:
             flash(error, "danger")
         else:
+            phone = normalize_phone(phone_input)
             database = get_db()
             try:
                 database.execute(

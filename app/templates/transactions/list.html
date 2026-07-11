@@ -12,9 +12,9 @@
 
 <section class="card content-card">{% if transactions %}<div class="table-wrap"><table>
     <thead><tr><th>Описание</th><th>Тип</th><th>Категория</th><th>Автор</th><th>Дата</th><th class="align-right">Сумма</th><th><span class="visually-hidden">Действия</span></th></tr></thead>
-    <tbody>{% for transaction in transactions %}<tr class="{% if transaction.scope == 'family' %}family-row{% endif %}">
+    <tbody>{% for transaction in transactions %}<tr class="{{ 'family-row' if transaction.scope == 'family' else 'personal-row' }}">
         <td>{{ transaction.description }} {% if transaction.scope == 'family' %}<span class="tag tag--family"># Семейная</span>{% endif %}</td>
-        <td>{{ transaction.type_label }}</td><td><span class="tag">{{ transaction.category }}</span></td><td>{{ transaction.member }}</td><td>{{ transaction.date.strftime('%d.%m.%Y') }}</td><td class="align-right amount amount--{{ transaction.type }}">{{ transaction.amount }}</td>
+        <td>{{ transaction.type_label }}</td><td><span class="tag tag--category-color" data-category-color="{{ transaction.category_color }}"><span class="category-color-dot" aria-hidden="true"></span>{{ transaction.category }}</span></td><td>{{ transaction.member }}</td><td>{{ transaction.date.strftime('%d.%m.%Y') }}</td><td class="align-right amount amount--{{ transaction.type }}">{{ transaction.amount }}</td>
         <td>{% if transaction.can_edit %}<div class="row-actions row-actions--end"><a class="table-link" href="{{ url_for('transactions.transaction_edit', transaction_id=transaction.id) }}">Изменить</a><form method="post" action="{{ url_for('transactions.transaction_delete', transaction_id=transaction.id) }}" data-confirm="Удалить операцию «{{ transaction.description }}»?"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="link-button link-button--danger" type="submit">Удалить</button></form></div>{% else %}<span class="locked-note" title="Изменить может только автор">Только автор</span>{% endif %}</td>
     </tr>{% endfor %}</tbody>
 </table></div>{% else %}<div class="empty-state"><div class="empty-icon">₽</div><h2>Операций не найдено</h2><p>Добавьте операцию или измените фильтры.</p></div>{% endif %}</section>

@@ -97,13 +97,13 @@
                 </thead>
                 <tbody>
                     {% for transaction in recent_transactions %}
-                        <tr class="{% if transaction.scope == 'family' %}family-row{% endif %}">
+                        <tr class="{{ 'family-row' if transaction.scope == 'family' else 'personal-row' }}">
                             <td>
                                 {{ transaction.description }}
                                 {% if transaction.scope == 'family' %}<span class="tag tag--family"># Семейная</span>{% endif %}
                             </td>
                             <td>{{ transaction.type_label }}</td>
-                            <td><span class="tag">{{ transaction.category }}</span></td>
+                            <td><span class="tag tag--category-color" data-category-color="{{ transaction.category_color }}"><span class="category-color-dot" aria-hidden="true"></span>{{ transaction.category }}</span></td>
                             <td>{{ transaction.member }}</td>
                             <td>{{ transaction.date.strftime('%d.%m.%Y') }}</td>
                             <td class="align-right amount amount--{{ transaction.type }}">{{ transaction.amount }}</td>

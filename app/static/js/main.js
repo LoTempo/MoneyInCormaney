@@ -1,5 +1,39 @@
 const confirmationForms = document.querySelectorAll("form[data-confirm]");
 
+for (const element of document.querySelectorAll("[data-category-color]")) {
+    const color = element.dataset.categoryColor;
+    if (/^#[0-9a-f]{6}$/i.test(color)) {
+        element.style.setProperty("--category-color", color);
+    }
+}
+
+const formatRussianPhone = (input) => {
+    const digits = input.value.replace(/\D/g, "");
+    let subscriber = digits;
+    if (digits.startsWith("7") || (digits.startsWith("8") && digits.length > 10)) {
+        subscriber = digits.slice(1);
+    }
+    subscriber = subscriber.slice(0, 10);
+
+    let formatted = "+7";
+    if (subscriber.length) formatted += ` ${subscriber.slice(0, 3)}`;
+    if (subscriber.length > 3) formatted += ` ${subscriber.slice(3, 6)}`;
+    if (subscriber.length > 6) formatted += `-${subscriber.slice(6, 8)}`;
+    if (subscriber.length > 8) formatted += `-${subscriber.slice(8, 10)}`;
+    input.value = formatted;
+};
+
+for (const phoneInput of document.querySelectorAll("[data-russian-phone]")) {
+    formatRussianPhone(phoneInput);
+    phoneInput.addEventListener("focus", () => {
+        if (!phoneInput.value) phoneInput.value = "+7";
+    });
+    phoneInput.addEventListener("input", () => formatRussianPhone(phoneInput));
+    phoneInput.form?.addEventListener("submit", () => {
+        if (phoneInput.value === "+7") phoneInput.value = "";
+    });
+}
+
 for (const form of confirmationForms) {
     form.addEventListener("submit", (event) => {
         const message = form.dataset.confirm || "Подтвердите действие";

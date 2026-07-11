@@ -761,6 +761,36 @@ input[type="color"] {
     font-weight: 800;
 }
 
+.category-icon[data-category-color] {
+    color: var(--category-color);
+    border: 1px solid color-mix(in srgb, var(--category-color) 35%, white);
+    background: color-mix(in srgb, var(--category-color) 13%, white);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--category-color) 14%, transparent);
+}
+
+.category-info h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.category-color-dot {
+    width: 0.65rem;
+    height: 0.65rem;
+    display: inline-block;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--category-color, var(--blue-500));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--category-color, var(--blue-500)) 15%, transparent);
+}
+
+.tag--category-color {
+    gap: 0.4rem;
+    color: color-mix(in srgb, var(--category-color) 75%, #0f172a);
+    border: 1px solid color-mix(in srgb, var(--category-color) 28%, white);
+    background: color-mix(in srgb, var(--category-color) 9%, white);
+}
+
 .category-info {
     flex: 1;
 }
@@ -1344,6 +1374,14 @@ input[type="color"] {
 @keyframes dialog-arrive {
     from { opacity: 0; transform: translateY(12px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.personal-row {
+    background: rgba(239, 246, 255, 0.72);
+}
+
+.personal-row:hover {
+    background: var(--blue-100);
 }
 
 .family-row {

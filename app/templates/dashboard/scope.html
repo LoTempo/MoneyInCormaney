@@ -61,7 +61,7 @@
         <div class="table-wrap"><table>
             <thead><tr><th>Причина</th><th>Действие</th><th>Автор</th><th>Дата</th><th class="align-right">Сумма</th></tr></thead>
             <tbody>{% for entry in savings_entries %}
-                <tr class="{% if is_family %}family-row{% endif %}">
+                <tr class="{{ 'family-row' if is_family else 'personal-row' }}">
                     <td>{{ entry.reason }}{% if is_family %} <span class="tag tag--family"># Семейная</span>{% endif %}</td>
                     <td>{{ entry.type_label }}</td>
                     <td>{{ entry.member }}</td>
@@ -79,11 +79,13 @@
     <div class="section-heading"><h2>Операции бюджета</h2><p>Последние двадцать записей.</p></div>
     {% if transactions %}
         <div class="table-wrap"><table>
-            <thead><tr><th>Описание</th><th>Тип</th><th>Автор</th><th>Дата</th><th class="align-right">Сумма</th></tr></thead>
+            <thead><tr><th>Описание</th><th>Тип</th><th>Категория</th><th>Автор</th><th>Дата</th><th class="align-right">Сумма</th></tr></thead>
             <tbody>{% for transaction in transactions %}
-                <tr class="{% if is_family %}family-row{% endif %}">
+                <tr class="{{ 'family-row' if is_family else 'personal-row' }}">
                     <td>{{ transaction.description }}{% if is_family %} <span class="tag tag--family"># Семейная</span>{% endif %}</td>
-                    <td>{{ transaction.type_label }}</td><td>{{ transaction.member }}</td>
+                    <td>{{ transaction.type_label }}</td>
+                    <td><span class="tag tag--category-color" data-category-color="{{ transaction.category_color }}"><span class="category-color-dot" aria-hidden="true"></span>{{ transaction.category }}</span></td>
+                    <td>{{ transaction.member }}</td>
                     <td>{{ transaction.date.strftime('%d.%m.%Y') }}</td>
                     <td class="align-right amount amount--{{ transaction.type }}">{{ transaction.amount }}</td>
                 </tr>

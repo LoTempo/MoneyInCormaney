@@ -146,6 +146,7 @@ def transaction_list():
     query = f"""
         SELECT t.id, t.description, t.transaction_date AS date, t.amount,
                t.type, t.scope, t.user_id, c.name AS category,
+               c.color AS category_color,
                u.name AS member, (t.user_id = %s) AS can_edit
         FROM transactions AS t
         JOIN categories AS c ON c.id = t.category_id

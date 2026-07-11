@@ -61,6 +61,18 @@ def transaction_type_label(transaction_type):
 
 
 def valid_phone(phone):
-    if not phone:
+    value = (phone or "").strip()
+    if value in {"", "+7"}:
         return True
-    return re.fullmatch(r"[+\d][\d\s()\-]{6,24}", phone) is not None
+    return re.fullmatch(r"\+7 \d{3} \d{3}-\d{2}-\d{2}", value) is not None
+
+
+def normalize_phone(phone):
+    """Return one storage format for a valid Russian phone number."""
+
+    value = (phone or "").strip()
+    if value in {"", "+7"}:
+        return None
+
+    digits = re.sub(r"\D", "", value)[1:]
+    return f"+7 {digits[:3]} {digits[3:6]}-{digits[6:8]}-{digits[8:10]}"

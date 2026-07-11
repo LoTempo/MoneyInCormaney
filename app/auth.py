@@ -5,7 +5,7 @@ from psycopg import errors
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.db import get_db
-from app.utils import valid_phone
+from app.utils import normalize_phone, valid_phone
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -88,7 +88,7 @@ def register():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip().lower()
-        phone = request.form.get("phone", "").strip() or None
+        phone_input = request.form.get("phone", "").strip()
         password = request.form.get("password", "")
         password_confirm = request.form.get("password_confirm", "")
 
@@ -97,8 +97,8 @@ def register():
             error = "Имя должно содержать от 2 до 100 символов."
         elif "@" not in email or len(email) > 254:
             error = "Введите корректную электронную почту."
-        elif not valid_phone(phone):
-            error = "Введите корректный номер телефона."
+        elif not valid_phone(phone_input):
+            error = "Введите номер в формате +7 XXX XXX-XX-XX."
         elif len(password) < 8:
             error = "Пароль должен содержать не менее 8 символов."
         elif password != password_confirm:
@@ -109,6 +109,8 @@ def register():
         if error is not None:
             flash(error, "danger")
             return render_template("auth/register.html"), 400
+
+        phone = normalize_phone(phone_input)
 
         database = get_db()
         try:

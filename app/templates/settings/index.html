@@ -35,10 +35,13 @@
 
             <div class="form-group">
                 <label for="phone">Номер телефона <span class="optional">необязательно</span></label>
-                <input id="phone" name="phone" type="tel" autocomplete="tel"
-                       value="{{ request.form.get('phone', user.phone or '') }}"
-                       placeholder="+7 900 000-00-00">
-                <small>Можно использовать цифры, пробелы, скобки, плюс и дефис.</small>
+                <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="numeric"
+                       data-russian-phone maxlength="16"
+                       value="{{ request.form.get('phone', user.phone or '+7') }}"
+                       placeholder="+7 900 000-00-00"
+                       pattern="(?:\+7|\+7 [0-9]{3} [0-9]{3}-[0-9]{2}-[0-9]{2})"
+                       title="Введите 10 цифр после +7">
+                <small>Единый формат: +7 и ровно 10 цифр российского номера.</small>
             </div>
 
             <div class="form-grid form-grid--two">
