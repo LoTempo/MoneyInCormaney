@@ -20,31 +20,40 @@ def load_logged_in_user():
     if user_id is None:
         return
 
-    database = get_db()
-    g.user = database.execute(
+    row = get_db().execute(
         """
-        SELECT id, name, email, phone, currency, week_start
-        FROM users
-        WHERE id = %s
-        """,
-        (user_id,),
-    ).fetchone()
-
-    if g.user is None:
-        session.clear()
-        return
-
-    g.family = database.execute(
-        """
-        SELECT f.id, f.name, f.invite_code, fm.role
-        FROM families AS f
-        JOIN family_members AS fm ON fm.family_id = f.id
-        WHERE fm.user_id = %s
+        SELECT u.id, u.name, u.email, u.phone, u.currency, u.week_start,
+               f.id AS family_id, f.name AS family_name,
+               f.invite_code, fm.role AS family_role
+        FROM users AS u
+        LEFT JOIN family_members AS fm ON fm.user_id = u.id
+        LEFT JOIN families AS f ON f.id = fm.family_id
+        WHERE u.id = %s
         ORDER BY fm.joined_at
         LIMIT 1
         """,
         (user_id,),
     ).fetchone()
+
+    if row is None:
+        session.clear()
+        return
+
+    g.user = {
+        "id": row["id"],
+        "name": row["name"],
+        "email": row["email"],
+        "phone": row["phone"],
+        "currency": row["currency"],
+        "week_start": row["week_start"],
+    }
+    if row["family_id"] is not None:
+        g.family = {
+            "id": row["family_id"],
+            "name": row["family_name"],
+            "invite_code": row["invite_code"],
+            "role": row["family_role"],
+        }
 
 
 def login_required(view):

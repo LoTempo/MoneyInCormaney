@@ -148,40 +148,50 @@ def get_budget_summary(scope, day=None):
 
     month_start, next_month = month_bounds(day)
     condition, parameters = access_condition(scope)
-    database = get_db()
-
-    totals = database.execute(
-        f"""
-        SELECT
-            COALESCE(SUM(amount) FILTER (WHERE type = 'income'), 0) AS income,
-            COALESCE(SUM(amount) FILTER (WHERE type = 'expense'), 0) AS expenses
-        FROM transactions AS t
-        WHERE {condition}
-          AND t.transaction_date >= %s
-          AND t.transaction_date < %s
-        """,
-        parameters + [month_start, next_month],
-    ).fetchone()
-
     savings_condition, savings_parameters = savings_access_condition(scope)
-    savings_row = database.execute(
+    if scope == "personal":
+        limit_condition = "mb.scope = 'personal' AND mb.user_id = %s"
+        limit_parameters = [g.user["id"], month_start]
+    else:
+        limit_condition = "mb.scope = 'family' AND mb.family_id = %s"
+        limit_parameters = [g.family["id"], month_start]
+
+    summary = get_db().execute(
         f"""
-        SELECT COALESCE(SUM(
-            CASE
-                WHEN entry_type = 'deposit' THEN amount
-                WHEN entry_type = 'withdrawal' THEN -amount
-                ELSE 0
-            END
-        ), 0) AS savings
-        FROM savings_entries AS s
-        WHERE {savings_condition}
+        WITH transaction_totals AS (
+            SELECT COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'income'), 0) AS income,
+                   COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'expense'), 0) AS expenses
+            FROM transactions AS t
+            WHERE {condition}
+              AND t.transaction_date >= %s
+              AND t.transaction_date < %s
+        ),
+        savings_total AS (
+            SELECT COALESCE(SUM(CASE
+                       WHEN s.entry_type = 'deposit' THEN s.amount
+                       WHEN s.entry_type = 'withdrawal' THEN -s.amount
+                       ELSE 0
+                   END), 0) AS savings
+            FROM savings_entries AS s
+            WHERE {savings_condition}
+        )
+        SELECT totals.income, totals.expenses, savings.savings,
+               (SELECT mb.spending_limit
+                FROM monthly_budgets AS mb
+                WHERE {limit_condition} AND mb.month = %s
+                LIMIT 1) AS spending_limit
+        FROM transaction_totals AS totals
+        CROSS JOIN savings_total AS savings
         """,
-        savings_parameters,
+        parameters
+        + [month_start, next_month]
+        + savings_parameters
+        + limit_parameters,
     ).fetchone()
 
-    spending_limit = get_monthly_limit(scope, month_start)
+    spending_limit = summary["spending_limit"]
     balance = (
-        spending_limit - totals["expenses"]
+        spending_limit - summary["expenses"]
         if spending_limit is not None
         else None
     )
@@ -193,14 +203,14 @@ def get_budget_summary(scope, day=None):
         "limit_set": spending_limit is not None,
         "limit_raw": spending_limit,
         "balance_raw": balance,
-        "income_raw": totals["income"],
-        "expenses_raw": totals["expenses"],
-        "savings_raw": savings_row["savings"],
+        "income_raw": summary["income"],
+        "expenses_raw": summary["expenses"],
+        "savings_raw": summary["savings"],
         "limit": format_money(spending_limit, currency) if spending_limit is not None else "Не задан",
         "balance": format_money(balance, currency) if balance is not None else "Не задан",
-        "income": format_money(totals["income"], currency),
-        "expenses": format_money(totals["expenses"], currency),
-        "savings": format_money(savings_row["savings"], currency),
+        "income": format_money(summary["income"], currency),
+        "expenses": format_money(summary["expenses"], currency),
+        "savings": format_money(summary["savings"], currency),
         "balance_negative": balance is not None and balance < 0,
     }
 
