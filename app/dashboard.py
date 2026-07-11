@@ -53,6 +53,15 @@ def recent_transactions(scope="all", limit=8):
 @login_required
 def index():
     scopes = enabled_scopes()
+    configured_scopes = []
+    if g.user["personal_budget_enabled"]:
+        configured_scopes.append("personal")
+    if g.user["family_budget_enabled"]:
+        configured_scopes.append("family")
+
+    if len(configured_scopes) == 1 and configured_scopes[0] in scopes:
+        return render_budget_page(configured_scopes[0], overview_mode=True)
+
     personal = get_budget_summary("personal") if "personal" in scopes else None
     family = get_budget_summary("family") if "family" in scopes else None
     return render_template(
@@ -63,7 +72,7 @@ def index():
     )
 
 
-def render_budget_page(scope):
+def render_budget_page(scope, overview_mode=False):
     if not scope_is_available(scope):
         flash("Этот бюджет выключен или недоступен. Проверьте настройки.", "info")
         return redirect(url_for("settings.settings_view"))
@@ -74,6 +83,7 @@ def render_budget_page(scope):
         summary=get_budget_summary(scope),
         transactions=recent_transactions(scope, limit=20),
         savings_entries=get_savings_entries(scope, limit=20),
+        overview_mode=overview_mode,
     )
 
 

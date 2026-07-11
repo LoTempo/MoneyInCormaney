@@ -68,15 +68,15 @@ def validate_transaction_form(existing=None):
         return None, "Сумма должна быть положительным числом с двумя знаками после запятой."
     if transaction_date is None:
         return None, "Укажите корректную дату."
-    if len(description) < 2 or len(description) > 200:
-        return None, "Описание должно содержать от 2 до 200 символов."
+    if description and (len(description) < 2 or len(description) > 200):
+        return None, "Описание должно содержать от 2 до 200 символов или быть пустым."
     if note is not None and len(note) > 2000:
         return None, "Комментарий не должен превышать 2000 символов."
 
     if scope == "personal":
         category = get_db().execute(
             """
-            SELECT id, type FROM categories
+            SELECT id, name, type FROM categories
             WHERE id = %s AND scope = 'personal' AND owner_user_id = %s
             """,
             (category_id, g.user["id"]),
@@ -84,7 +84,7 @@ def validate_transaction_form(existing=None):
     else:
         category = get_db().execute(
             """
-            SELECT id, type FROM categories
+            SELECT id, name, type FROM categories
             WHERE id = %s AND scope = 'family' AND family_id = %s
             """,
             (category_id, g.family["id"]),
@@ -94,6 +94,8 @@ def validate_transaction_form(existing=None):
         return None, "Выберите категорию из нужного бюджета."
     if category["type"] != required_category_type:
         return None, "Категория не подходит выбранному типу операции."
+    if not description:
+        description = category["name"]
 
     return {
         "scope": scope,

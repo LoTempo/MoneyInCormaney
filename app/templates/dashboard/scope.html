@@ -27,7 +27,7 @@
     {% if not is_family or g.family.role == 'owner' %}
         <form class="limit-form limit-form--hero" method="post" action="{{ url_for('dashboard.update_limit', scope=scope) }}">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="return_to" value="{{ scope }}">
+            <input type="hidden" name="return_to" value="{{ 'home' if overview_mode else scope }}">
             <label for="scope_limit">Изменить лимит</label>
             <div class="limit-form__controls">
                 <input id="scope_limit" name="spending_limit" type="number" min="0" step="0.01" required
@@ -50,7 +50,7 @@
     </button>
 </section>
 
-{{ savings_dialog(scope, scope, is_family) }}
+{{ savings_dialog(scope, 'home' if overview_mode else scope, is_family) }}
 
 <section class="card content-card {% if is_family %}family-surface{% endif %}">
     <div class="section-heading">

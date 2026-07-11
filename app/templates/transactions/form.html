@@ -52,7 +52,7 @@
                 {% if not categories %}<small>Сначала <a href="{{ url_for('categories.category_create') }}">создайте категорию</a>.</small>{% endif %}
             </div>
 
-            <div class="form-group"><label for="description">Описание</label><input id="description" name="description" type="text" maxlength="200" required value="{{ request.form.get('description', transaction.description if is_editing else '') }}" placeholder="Например, продукты на неделю"></div>
+            <div class="form-group"><label for="description">Описание <span class="optional">необязательно</span></label><input id="description" name="description" type="text" maxlength="200" value="{{ request.form.get('description', transaction.description if is_editing else '') }}" placeholder="Если оставить пустым, используем название категории"><small>Например, «Продукты на неделю». Без описания в таблице будет показано название категории.</small></div>
             <div class="form-group"><label for="note">Комментарий <span class="optional">необязательно</span></label><textarea id="note" name="note" rows="4" maxlength="2000" placeholder="Дополнительная информация">{{ request.form.get('note', transaction.note if is_editing and transaction.note else '') }}</textarea></div>
 
             <div class="form-actions"><a class="button button--ghost" href="{{ url_for('transactions.transaction_list') }}">Отмена</a><button class="button {% if current_scope == 'family' %}button--family{% else %}button--primary{% endif %}" type="submit">{{ "Сохранить изменения" if is_editing else "Добавить операцию" }}</button></div>
