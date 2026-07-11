@@ -1,0 +1,110 @@
+name: Deploy to alwaysdata
+
+on:
+  push:
+    branches:
+      - main
+
+  # Позволяет при необходимости запустить деплой кнопкой из GitHub.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Не допускает одновременного выполнения двух деплоев.
+concurrency:
+  group: alwaysdata-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ALWAYSDATA_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.ALWAYSDATA_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/alwaysdata_deploy
+          chmod 600 ~/.ssh/alwaysdata_deploy
+
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload project
+        env:
+          AD_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+          AD_USER: ${{ secrets.ALWAYSDATA_USER }}
+          AD_PATH: ${{ secrets.ALWAYSDATA_PATH }}
+        run: |
+          rsync -az --delete \
+            --exclude ".git/" \
+            --exclude ".github/" \
+            --exclude ".venv/" \
+            --exclude ".env" \
+            --exclude "__pycache__/" \
+            --exclude "*.pyc" \
+            --exclude ".pytest_cache/" \
+            --exclude "runtime/" \
+            --exclude "uploads/" \
+            --exclude "logs/" \
+            -e "ssh -i ~/.ssh/alwaysdata_deploy" \
+            ./ \
+            "$AD_USER@$AD_HOST:$AD_PATH/"
+
+      - name: Install Python dependencies
+        env:
+          AD_HOST: ${{ secrets.ALWAYSDATA_HOST }}
+          AD_USER: ${{ secrets.ALWAYSDATA_USER }}
+          AD_PATH: ${{ secrets.ALWAYSDATA_PATH }}
+        run: |
+          ssh -i ~/.ssh/alwaysdata_deploy \
+            "$AD_USER@$AD_HOST" \
+            "set -e
+             cd '$AD_PATH'
+
+             if [ ! -x .venv/bin/python ]; then
+               PYTHON_VERSION=3.12 python -m venv .venv
+             fi
+
+             .venv/bin/python -m pip install \
+               --disable-pip-version-check \
+               -r requirements.txt
+
+             .venv/bin/python -m compileall -q app wsgi.py"
+
+      - name: Restart alwaysdata website
+        env:
+          AD_API_KEY: ${{ secrets.ALWAYSDATA_API_KEY }}
+          AD_USER: ${{ secrets.ALWAYSDATA_USER }}
+          AD_SITE_ID: ${{ secrets.ALWAYSDATA_SITE_ID }}
+        run: |
+          curl --fail --silent --show-error \
+            -X POST \
+            --basic \
+            --user "$AD_API_KEY account=$AD_USER:" \
+            "https://api.alwaysdata.com/v1/site/$AD_SITE_ID/restart/"
+
+      - name: Check website
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl --fail --silent --show-error \
+              "https://lotempo.alwaysdata.net/health"; then
+              echo
+              echo "Deployment completed successfully."
+              exit 0
+            fi
+
+            echo "Website is not ready yet. Attempt: $attempt"
+            sleep 10
+          done
+
+          echo "Website health check failed."
+          exit 1
