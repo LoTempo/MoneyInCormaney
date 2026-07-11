@@ -115,3 +115,24 @@ SERVER_HOST=0.0.0.0
 
 При таком запуске `run.py` использует Waitress. Перед публикацией также нужны HTTPS,
 обратный прокси, резервное копирование PostgreSQL и хранение секретов вне Git.
+
+## Docker и Northflank
+
+Проект собирается из корневого `Dockerfile` и слушает HTTP-порт `8080`.
+Для Northflank создайте combined service из GitHub-репозитория, выберите сборку
+через Dockerfile и ветку `main`. Включите CI для сборки новых commit и CD для
+автоматического развёртывания успешной сборки.
+
+Добавьте runtime secrets:
+
+```text
+APP_ENV=production
+FLASK_DEBUG=false
+PORT=8080
+SECRET_KEY=replace-with-a-long-random-value
+DATABASE_URL=postgresql://pooled-neon-connection
+```
+
+Создайте публичный HTTP-порт `8080`, а для health check используйте `/health`.
+`DATABASE_ADMIN_URL` рабочему контейнеру не требуется: таблицы Neon создаются
+отдельно однократной командой `init-db`.

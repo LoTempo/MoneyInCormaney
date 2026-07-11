@@ -36,7 +36,7 @@ class Config:
     DATABASE_POOL_MAX_IDLE = env_int("DATABASE_POOL_MAX_IDLE", 240)
     DEBUG = env_flag("FLASK_DEBUG")
     SERVER_HOST = os.getenv("SERVER_HOST", "127.0.0.1")
-    SERVER_PORT = env_int("SERVER_PORT", 5000)
+    SERVER_PORT = env_int("PORT", env_int("SERVER_PORT", 5000))
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

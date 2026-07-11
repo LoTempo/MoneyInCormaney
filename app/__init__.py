@@ -60,6 +60,10 @@ def create_app(test_config=None):
     app.register_blueprint(analytics_bp)
     app.register_blueprint(savings_bp)
 
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
     @app.after_request
     def add_security_headers(response):
         response.headers["X-Content-Type-Options"] = "nosniff"
