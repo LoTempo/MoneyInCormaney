@@ -24,6 +24,7 @@ class Config:
     APP_ENV = os.getenv("APP_ENV", "development").lower()
     SECRET_KEY = os.getenv("SECRET_KEY", "development-only-secret-key")
     DATABASE_URL = os.getenv("DATABASE_URL") or None
+    DATABASE_ADMIN_URL = os.getenv("DATABASE_ADMIN_URL") or None
     DATABASE_HOST = os.getenv("DATABASE_HOST", "localhost")
     DATABASE_PORT = env_int("DATABASE_PORT", 5432)
     DATABASE_NAME = os.getenv("DATABASE_NAME", "family_budget")

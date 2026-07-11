@@ -45,6 +45,15 @@ def init_db():
     schema_path = Path(current_app.root_path).parent / "sql" / "schema.sql"
     schema = schema_path.read_text(encoding="utf-8")
 
+    admin_url = current_app.config.get("DATABASE_ADMIN_URL")
+    if admin_url:
+        with psycopg.connect(
+            admin_url,
+            connect_timeout=current_app.config["DATABASE_CONNECT_TIMEOUT"],
+        ) as connection:
+            connection.execute(schema)
+        return
+
     connection = get_db()
     connection.execute(schema)
     connection.commit()
