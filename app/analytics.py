@@ -1,10 +1,10 @@
 from datetime import date
 from decimal import Decimal
 
-from flask import Blueprint, g, render_template, request
+from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
 from app.auth import login_required
-from app.budget import access_condition, savings_access_condition
+from app.budget import access_condition, enabled_scopes, savings_access_condition
 from app.db import get_db
 from app.utils import format_money
 
@@ -53,10 +53,9 @@ def selected_year():
 
 
 def selected_scope():
+    scopes = enabled_scopes()
     scope = request.args.get("scope", "personal")
-    if scope == "family" and g.family is not None:
-        return "family"
-    return "personal"
+    return scope if scope in scopes else scopes[0] if scopes else None
 
 
 def operation_totals(scope, start, end):
@@ -273,6 +272,9 @@ def savings_report(scope, year):
 @login_required
 def index():
     scope = selected_scope()
+    if scope is None:
+        flash("Сначала включите личный или семейный бюджет в настройках.", "info")
+        return redirect(url_for("settings.settings_view"))
     view = request.args.get("view", "operations")
     if view not in {"operations", "savings"}:
         view = "operations"

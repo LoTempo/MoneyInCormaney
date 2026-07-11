@@ -18,23 +18,53 @@ def month_bounds(day=None):
 
 
 def scope_is_available(scope):
-    return scope == "personal" or (scope == "family" and g.family is not None)
+    if scope == "personal":
+        return bool(g.user and g.user["personal_budget_enabled"])
+    if scope == "family":
+        return bool(
+            g.user
+            and g.user["family_budget_enabled"]
+            and g.family is not None
+        )
+    return False
+
+
+def enabled_scopes():
+    scopes = []
+    if scope_is_available("personal"):
+        scopes.append("personal")
+    if scope_is_available("family"):
+        scopes.append("family")
+    return scopes
 
 
 def access_condition(scope, alias="t"):
     personal_sql = f"({alias}.scope = 'personal' AND {alias}.user_id = %s)"
     personal_params = [g.user["id"]]
+    personal_enabled = scope_is_available("personal")
+    family_enabled = scope_is_available("family")
 
-    if scope == "personal" or g.family is None:
-        return personal_sql, personal_params
-
-    family_sql = f"({alias}.scope = 'family' AND {alias}.family_id = %s)"
-    family_params = [g.family["id"]]
-
+    if scope == "personal":
+        return (personal_sql, personal_params) if personal_enabled else ("FALSE", [])
     if scope == "family":
-        return family_sql, family_params
+        if not family_enabled:
+            return "FALSE", []
+        return (
+            f"({alias}.scope = 'family' AND {alias}.family_id = %s)",
+            [g.family["id"]],
+        )
     if scope in {"all", "compare"}:
-        return f"({personal_sql} OR {family_sql})", personal_params + family_params
+        conditions = []
+        parameters = []
+        if personal_enabled:
+            conditions.append(personal_sql)
+            parameters.extend(personal_params)
+        if family_enabled:
+            conditions.append(
+                f"({alias}.scope = 'family' AND {alias}.family_id = %s)"
+            )
+            parameters.append(g.family["id"])
+        return (f"({' OR '.join(conditions)})", parameters) if conditions else ("FALSE", [])
     raise ValueError("Unknown budget scope.")
 
 
@@ -42,15 +72,30 @@ def savings_access_condition(scope, alias="s"):
     personal_sql = f"({alias}.scope = 'personal' AND {alias}.user_id = %s)"
     personal_params = [g.user["id"]]
 
-    if scope == "personal" or g.family is None:
-        return personal_sql, personal_params
+    personal_enabled = scope_is_available("personal")
+    family_enabled = scope_is_available("family")
 
-    family_sql = f"({alias}.scope = 'family' AND {alias}.family_id = %s)"
-    family_params = [g.family["id"]]
+    if scope == "personal":
+        return (personal_sql, personal_params) if personal_enabled else ("FALSE", [])
     if scope == "family":
-        return family_sql, family_params
+        if not family_enabled:
+            return "FALSE", []
+        return (
+            f"({alias}.scope = 'family' AND {alias}.family_id = %s)",
+            [g.family["id"]],
+        )
     if scope in {"all", "compare"}:
-        return f"({personal_sql} OR {family_sql})", personal_params + family_params
+        conditions = []
+        parameters = []
+        if personal_enabled:
+            conditions.append(personal_sql)
+            parameters.extend(personal_params)
+        if family_enabled:
+            conditions.append(
+                f"({alias}.scope = 'family' AND {alias}.family_id = %s)"
+            )
+            parameters.append(g.family["id"])
+        return (f"({' OR '.join(conditions)})", parameters) if conditions else ("FALSE", [])
     raise ValueError("Unknown savings scope.")
 
 

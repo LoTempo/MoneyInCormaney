@@ -19,6 +19,10 @@ def settings_view():
         phone_input = request.form.get("phone", "").strip()
         currency = request.form.get("currency", "")
         week_start = request.form.get("week_start", "")
+        personal_budget_enabled = (
+            request.form.get("personal_budget_enabled") == "on"
+        )
+        family_budget_enabled = request.form.get("family_budget_enabled") == "on"
 
         error = None
         if len(name) < 2 or len(name) > 100:
@@ -42,10 +46,21 @@ def settings_view():
                     """
                     UPDATE users
                     SET name = %s, email = %s, phone = %s, currency = %s,
-                        week_start = %s, updated_at = CURRENT_TIMESTAMP
+                        week_start = %s, personal_budget_enabled = %s,
+                        family_budget_enabled = %s,
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE id = %s
                     """,
-                    (name, email, phone, currency, week_start, g.user["id"]),
+                    (
+                        name,
+                        email,
+                        phone,
+                        currency,
+                        week_start,
+                        personal_budget_enabled,
+                        family_budget_enabled,
+                        g.user["id"],
+                    ),
                 )
                 database.commit()
                 flash("Настройки сохранены.", "success")

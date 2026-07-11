@@ -64,6 +64,21 @@
                 </div>
             </div>
 
+            {% set personal_enabled = request.form.get('personal_budget_enabled') == 'on' if request.method == 'POST' else user.personal_budget_enabled %}
+            {% set family_enabled = request.form.get('family_budget_enabled') == 'on' if request.method == 'POST' else user.family_budget_enabled %}
+            <fieldset class="budget-visibility-settings">
+                <legend>Отображение бюджетов</legend>
+                <p>Выключение только скрывает бюджет. Категории, операции, лимиты и сбережения не удаляются.</p>
+                <label class="budget-toggle-card">
+                    <span><strong>Личный бюджет</strong><small>Личные операции, категории и аналитика.</small></span>
+                    <input name="personal_budget_enabled" type="checkbox" {% if personal_enabled %}checked{% endif %}>
+                </label>
+                <label class="budget-toggle-card budget-toggle-card--family">
+                    <span><strong>Семейный бюджет</strong><small>Общие операции, категории и аналитика семьи.</small></span>
+                    <input name="family_budget_enabled" type="checkbox" {% if family_enabled %}checked{% endif %}>
+                </label>
+            </fieldset>
+
             <div class="form-actions">
                 <button class="button button--primary" type="submit">Сохранить настройки</button>
             </div>

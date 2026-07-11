@@ -11,7 +11,7 @@
                         <span><i class="category-color-dot" data-category-color="{{ category.color }}" aria-hidden="true"></i>{{ category.name }}</span>
                         <strong>{{ category.amount_display }}</strong>
                     </div>
-                    <div class="analytics-bar"><span class="analytics-bar__fill analytics-bar__fill--{{ category_type }}" data-bar-width="{{ category.percent }}"></span></div>
+                    <div class="analytics-bar"><span class="analytics-bar__fill" data-bar-width="{{ category.percent }}" data-category-color="{{ category.color }}"></span></div>
                 </div>
             {% endfor %}
         </div>
@@ -36,7 +36,7 @@
        href="{{ url_for('analytics.index', view='savings', scope=scope, year=year) }}">Сбережения</a>
 </nav>
 
-{% if g.family %}
+{% if g.family and g.user.personal_budget_enabled and g.user.family_budget_enabled %}
 <nav class="analytics-scope-switch" aria-label="Выбор бюджета">
     <a class="{% if scope == 'personal' %}is-active{% endif %}"
        href="{{ url_for('analytics.index', view=view, scope='personal', period=period, month=month_value, year=year) }}">Личный бюджет</a>

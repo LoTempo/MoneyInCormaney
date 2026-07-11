@@ -3,7 +3,7 @@ from datetime import date
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from app.auth import login_required
-from app.budget import access_condition, scope_is_available
+from app.budget import access_condition, enabled_scopes, scope_is_available
 from app.categories import flatten_category_options, get_available_categories
 from app.db import get_db
 from app.utils import format_money, parse_positive_amount, transaction_type_label
@@ -110,11 +110,16 @@ def validate_transaction_form(existing=None):
 @transactions_bp.get("/transactions")
 @login_required
 def transaction_list():
+    scopes = enabled_scopes()
+    if not scopes:
+        flash("Сначала включите личный или семейный бюджет в настройках.", "info")
+        return redirect(url_for("settings.settings_view"))
+
     selected_scope = request.args.get("scope", "all")
     if selected_scope not in {"personal", "family", "all"}:
         selected_scope = "all"
-    if selected_scope == "family" and g.family is None:
-        selected_scope = "personal"
+    if selected_scope != "all" and selected_scope not in scopes:
+        selected_scope = scopes[0]
 
     selected_type = request.args.get("type", "")
     month = request.args.get("month", "")
@@ -179,6 +184,11 @@ def transaction_list():
 @transactions_bp.route("/transactions/new", methods=("GET", "POST"))
 @login_required
 def transaction_create():
+    scopes = enabled_scopes()
+    if not scopes:
+        flash("Сначала включите личный или семейный бюджет в настройках.", "info")
+        return redirect(url_for("settings.settings_view"))
+
     if request.method == "POST":
         data, error = validate_transaction_form()
         if error is not None:
@@ -213,6 +223,7 @@ def transaction_create():
         "transactions/form.html",
         categories=get_category_options(),
         today=date.today().isoformat(),
+        default_scope=scopes[0],
     )
 
 

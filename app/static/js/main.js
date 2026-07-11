@@ -41,6 +41,21 @@ for (const phoneInput of document.querySelectorAll("[data-russian-phone]")) {
     });
 }
 
+for (const form of document.querySelectorAll("form[data-submit-once]")) {
+    form.addEventListener("submit", (event) => {
+        if (form.dataset.submitting === "true") {
+            event.preventDefault();
+            return;
+        }
+        form.dataset.submitting = "true";
+        for (const button of form.querySelectorAll("button[type='submit']")) {
+            button.disabled = true;
+            button.dataset.originalText = button.textContent;
+            button.textContent = "Сохраняем…";
+        }
+    });
+}
+
 for (const form of confirmationForms) {
     form.addEventListener("submit", (event) => {
         const message = form.dataset.confirm || "Подтвердите действие";
@@ -60,6 +75,8 @@ for (const form of categoryForms) {
         "[data-category-select], [data-parent-category-select]",
     );
     const scopeControls = form.querySelectorAll("[data-scope-controls] input[name='scope']");
+    const parentSelect = form.querySelector("[data-parent-category-select]");
+    const colorInput = form.querySelector("input[name='color']");
 
     if (!typeControls.length || !categorySelects.length) {
         continue;
@@ -97,6 +114,12 @@ for (const form of categoryForms) {
     for (const control of scopeControls) {
         control.addEventListener("change", updateCategoryOptions);
     }
+    parentSelect?.addEventListener("change", () => {
+        const selected = parentSelect.options[parentSelect.selectedIndex];
+        if (selected?.dataset.categoryColor && colorInput) {
+            colorInput.value = selected.dataset.categoryColor;
+        }
+    });
     updateCategoryOptions();
 }
 

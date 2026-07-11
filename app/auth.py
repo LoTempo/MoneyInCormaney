@@ -23,6 +23,7 @@ def load_logged_in_user():
     row = get_db().execute(
         """
         SELECT u.id, u.name, u.email, u.phone, u.currency, u.week_start,
+               u.personal_budget_enabled, u.family_budget_enabled,
                f.id AS family_id, f.name AS family_name,
                f.invite_code, fm.role AS family_role
         FROM users AS u
@@ -46,6 +47,8 @@ def load_logged_in_user():
         "phone": row["phone"],
         "currency": row["currency"],
         "week_start": row["week_start"],
+        "personal_budget_enabled": row["personal_budget_enabled"],
+        "family_budget_enabled": row["family_budget_enabled"],
     }
     if row["family_id"] is not None:
         g.family = {

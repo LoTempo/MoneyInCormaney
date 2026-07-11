@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 
 {% set is_editing = transaction is defined and transaction %}
-{% set initial_scope = transaction.scope if is_editing else request.args.get('scope', 'personal') %}
+{% set requested_scope = request.args.get('scope', default_scope if default_scope is defined else 'personal') %}
+{% set initial_scope = transaction.scope if is_editing else requested_scope %}
 {% set current_scope = request.form.get('scope', initial_scope) %}
 {% set initial_type = transaction.type if is_editing else 'expense' %}
 {% set current_type = request.form.get('type', initial_type) %}
@@ -13,7 +14,7 @@
     <div class="page-heading"><div><span class="eyebrow">{{ "Редактирование" if is_editing else "Новая запись" }}</span><h1>{{ "Изменить операцию" if is_editing else "Добавить операцию" }}</h1><p>Сначала выберите личный или семейный бюджет, затем тип операции.</p></div></div>
 
     <section class="card form-card {% if current_scope == 'family' %}family-surface{% endif %}">
-        <form method="post" class="form-stack" data-transaction-form>
+        <form method="post" class="form-stack" data-transaction-form data-submit-once>
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
             <div class="form-group">
@@ -23,8 +24,8 @@
                     <div class="scope-display {% if current_scope == 'family' %}scope-display--family{% endif %}">{{ "Семейный бюджет" if current_scope == 'family' else "Личный бюджет" }}</div>
                 {% else %}
                     <div class="choice-grid" data-scope-controls>
-                        <label class="choice-card"><input name="scope" type="radio" value="personal" {% if current_scope == 'personal' %}checked{% endif %}><span>Личный</span></label>
-                        {% if g.family %}<label class="choice-card choice-card--family"><input name="scope" type="radio" value="family" {% if current_scope == 'family' %}checked{% endif %}><span>Семейный</span></label>{% endif %}
+                        {% if g.user.personal_budget_enabled %}<label class="choice-card"><input name="scope" type="radio" value="personal" {% if current_scope == 'personal' %}checked{% endif %}><span>Личный</span></label>{% endif %}
+                        {% if g.family and g.user.family_budget_enabled %}<label class="choice-card choice-card--family"><input name="scope" type="radio" value="family" {% if current_scope == 'family' %}checked{% endif %}><span>Семейный</span></label>{% endif %}
                     </div>
                 {% endif %}
             </div>

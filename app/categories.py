@@ -4,6 +4,7 @@ from flask import Blueprint, abort, flash, g, redirect, render_template, request
 from psycopg import errors
 
 from app.auth import login_required
+from app.budget import enabled_scopes, scope_is_available
 from app.db import get_db
 
 
@@ -11,11 +12,11 @@ categories_bp = Blueprint("categories", __name__)
 
 
 def scope_available(scope):
-    return scope == "personal" or (scope == "family" and g.family is not None)
+    return scope_is_available(scope)
 
 
 def get_scope_categories(scope):
-    if scope == "personal":
+    if scope == "personal" and scope_available("personal"):
         return get_db().execute(
             """
             SELECT id, scope, owner_user_id, family_id, parent_id,
@@ -26,7 +27,7 @@ def get_scope_categories(scope):
             """,
             (g.user["id"],),
         ).fetchall()
-    if scope == "family" and g.family is not None:
+    if scope == "family" and scope_available("family"):
         return get_db().execute(
             """
             SELECT id, scope, owner_user_id, family_id, parent_id,
@@ -41,10 +42,7 @@ def get_scope_categories(scope):
 
 
 def get_available_categories():
-    categories = get_scope_categories("personal")
-    if g.family is not None:
-        categories += get_scope_categories("family")
-    return categories
+    return get_scope_categories("personal") + get_scope_categories("family")
 
 
 def build_category_tree(categories):
@@ -82,11 +80,16 @@ def flatten_category_options(categories, excluded_id=None):
 
 
 def get_category(category_id):
-    parameters = [category_id, g.user["id"]]
-    family_clause = ""
-    if g.family is not None:
-        family_clause = "OR (scope = 'family' AND family_id = %s)"
+    clauses = []
+    parameters = [category_id]
+    if scope_available("personal"):
+        clauses.append("(scope = 'personal' AND owner_user_id = %s)")
+        parameters.append(g.user["id"])
+    if scope_available("family"):
+        clauses.append("(scope = 'family' AND family_id = %s)")
         parameters.append(g.family["id"])
+    if not clauses:
+        abort(404)
 
     category = get_db().execute(
         f"""
@@ -94,10 +97,7 @@ def get_category(category_id):
                name, type, icon, color
         FROM categories
         WHERE id = %s
-          AND (
-              (scope = 'personal' AND owner_user_id = %s)
-              {family_clause}
-          )
+          AND ({' OR '.join(clauses)})
         """,
         parameters,
     ).fetchone()
@@ -177,15 +177,46 @@ def category_list():
     return render_template(
         "categories/list.html",
         personal_categories=build_category_tree(get_scope_categories("personal")),
-        family_categories=(
-            build_category_tree(get_scope_categories("family")) if g.family else []
-        ),
+        family_categories=build_category_tree(get_scope_categories("family")),
     )
+
+
+def find_existing_category(data):
+    if data["scope"] == "personal":
+        owner_condition = "scope = 'personal' AND owner_user_id = %s"
+        owner_id = g.user["id"]
+    else:
+        owner_condition = "scope = 'family' AND family_id = %s"
+        owner_id = g.family["id"]
+
+    return get_db().execute(
+        f"""
+        SELECT id
+        FROM categories
+        WHERE {owner_condition}
+          AND parent_id IS NOT DISTINCT FROM %s
+          AND LOWER(name) = LOWER(%s)
+        LIMIT 1
+        """,
+        (owner_id, data["parent_id"], data["name"]),
+    ).fetchone()
 
 
 @categories_bp.route("/categories/new", methods=("GET", "POST"))
 @login_required
 def category_create():
+    scopes = enabled_scopes()
+    if not scopes:
+        flash("Сначала включите личный или семейный бюджет в настройках.", "info")
+        return redirect(url_for("settings.settings_view"))
+
+    suggested_parent = None
+    if request.method == "GET" and request.args.get("parent_id"):
+        try:
+            suggested_parent = get_category(int(request.args["parent_id"]))
+        except ValueError:
+            abort(404)
+
     if request.method == "POST":
         data, error = validate_category_form()
         if error is not None:
@@ -216,10 +247,20 @@ def category_create():
                 return redirect(url_for("categories.category_list"))
             except errors.UniqueViolation:
                 database.rollback()
+                if find_existing_category(data):
+                    flash("Категория уже была сохранена.", "success")
+                    return redirect(url_for("categories.category_list"))
                 flash("Категория с таким названием уже существует на этом уровне.", "danger")
 
     parent_options = flatten_category_options(get_available_categories())
-    return render_template("categories/form.html", parent_options=parent_options)
+    requested_scope = request.args.get("scope", "")
+    creation_scope = requested_scope if requested_scope in scopes else scopes[0]
+    return render_template(
+        "categories/form.html",
+        parent_options=parent_options,
+        suggested_parent=suggested_parent,
+        creation_scope=creation_scope,
+    )
 
 
 @categories_bp.route(

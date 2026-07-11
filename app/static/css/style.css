@@ -331,6 +331,12 @@ textarea {
     transform: translateY(-1px);
 }
 
+.button:disabled {
+    opacity: 0.7;
+    cursor: wait;
+    transform: none;
+}
+
 .button--small {
     min-height: 38px;
     padding: 0.55rem 0.9rem;
@@ -808,6 +814,76 @@ input[type="color"] {
     color: var(--slate-500);
     font-size: 0.75rem;
     font-weight: 700;
+}
+
+.category-child-link {
+    color: var(--blue-700);
+    font-weight: 800;
+}
+
+.family-surface .category-child-link {
+    color: var(--purple-700);
+}
+
+.budget-visibility-settings {
+    margin: 0;
+    padding: 1rem;
+    display: grid;
+    gap: 0.75rem;
+    border: 1px solid var(--blue-100);
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), var(--blue-50));
+}
+
+.budget-visibility-settings legend {
+    padding: 0 0.4rem;
+    color: var(--slate-800);
+    font-weight: 900;
+}
+
+.budget-visibility-settings > p {
+    margin: 0 0 0.25rem;
+    color: var(--slate-500);
+    font-size: 0.84rem;
+}
+
+.budget-toggle-card {
+    padding: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid var(--blue-100);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+}
+
+.budget-toggle-card--family {
+    border-color: var(--purple-200);
+    background: rgba(250, 245, 255, 0.82);
+}
+
+.budget-toggle-card span,
+.budget-toggle-card small {
+    display: block;
+}
+
+.budget-toggle-card small {
+    margin-top: 0.2rem;
+    color: var(--slate-500);
+    font-weight: 500;
+}
+
+.budget-toggle-card input {
+    width: 2.8rem;
+    height: 1.45rem;
+    flex: 0 0 auto;
+    accent-color: var(--blue-600);
+}
+
+.budget-toggle-card--family input {
+    accent-color: var(--purple-600);
 }
 
 .row-actions {
@@ -1764,6 +1840,10 @@ input[type="color"] {
 
 .analytics-bar__fill--expense {
     background: linear-gradient(90deg, #fb7185, #dc2626);
+}
+
+.analytics-bar__fill[data-category-color] {
+    background: var(--category-color, var(--blue-500));
 }
 
 .analytics-empty-small {

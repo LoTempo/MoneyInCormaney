@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
         CHECK (currency IN ('RUB', 'USD', 'EUR')),
     week_start VARCHAR(10) NOT NULL DEFAULT 'monday'
         CHECK (week_start IN ('monday', 'sunday')),
+    personal_budget_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    family_budget_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

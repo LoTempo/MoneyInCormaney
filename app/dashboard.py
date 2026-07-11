@@ -3,6 +3,7 @@ from flask import Blueprint, abort, flash, g, redirect, render_template, request
 from app.auth import login_required
 from app.budget import (
     access_condition,
+    enabled_scopes,
     get_budget_summary,
     get_savings_entries,
     month_bounds,
@@ -51,20 +52,21 @@ def recent_transactions(scope="all", limit=8):
 @dashboard_bp.get("/")
 @login_required
 def index():
-    personal = get_budget_summary("personal")
-    family = get_budget_summary("family") if g.family else None
+    scopes = enabled_scopes()
+    personal = get_budget_summary("personal") if "personal" in scopes else None
+    family = get_budget_summary("family") if "family" in scopes else None
     return render_template(
         "dashboard/index.html",
         personal=personal,
         family=family,
-        recent_transactions=recent_transactions(),
+        recent_transactions=recent_transactions() if scopes else [],
     )
 
 
 def render_budget_page(scope):
     if not scope_is_available(scope):
-        flash("Сначала создайте семью или присоединитесь к ней.", "info")
-        return redirect(url_for("family.family_view"))
+        flash("Этот бюджет выключен или недоступен. Проверьте настройки.", "info")
+        return redirect(url_for("settings.settings_view"))
 
     return render_template(
         "dashboard/scope.html",
