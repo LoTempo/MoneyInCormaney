@@ -1,0 +1,50 @@
+{% macro savings_dialog(scope, return_to, family_style=false) %}
+<dialog class="savings-dialog {% if family_style %}savings-dialog--family{% endif %}" id="savings-dialog-{{ scope }}">
+    <form method="post" action="{{ url_for('savings.change', scope=scope) }}" class="form-stack">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="return_to" value="{{ return_to }}">
+
+        <div class="dialog-heading">
+            <div>
+                <span class="eyebrow">{{ "Общие накопления" if family_style else "Ваши накопления" }}</span>
+                <h2>Изменить сбережения</h2>
+            </div>
+            <button class="dialog-close" type="button" data-dialog-close aria-label="Закрыть">×</button>
+        </div>
+
+        <div class="form-group">
+            <span class="field-label">Что сделать</span>
+            <div class="choice-grid">
+                <label class="choice-card">
+                    <input name="entry_type" type="radio" value="deposit" checked>
+                    <span>Пополнить</span>
+                </label>
+                <label class="choice-card {% if family_style %}choice-card--family{% endif %}">
+                    <input name="entry_type" type="radio" value="withdrawal">
+                    <span>Потратить</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="savings-amount-{{ scope }}">Сумма</label>
+            <div class="input-with-suffix">
+                <input id="savings-amount-{{ scope }}" name="amount" type="number" min="0.01" step="0.01" required placeholder="0,00">
+                <span>{{ {'RUB': '₽', 'USD': '$', 'EUR': '€'}.get(g.user.currency, g.user.currency) }}</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="savings-reason-{{ scope }}">Причина</label>
+            <input id="savings-reason-{{ scope }}" name="reason" type="text" minlength="2" maxlength="200" required
+                   placeholder="Например, резерв на отпуск">
+            <small>Категория не нужна: эта запись попадёт в отдельную историю сбережений.</small>
+        </div>
+
+        <div class="form-actions">
+            <button class="button button--ghost" type="button" data-dialog-close>Отмена</button>
+            <button class="button {% if family_style %}button--family{% else %}button--primary{% endif %}" type="submit">Сохранить</button>
+        </div>
+    </form>
+</dialog>
+{% endmacro %}

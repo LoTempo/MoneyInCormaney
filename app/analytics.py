@@ -4,7 +4,12 @@ from decimal import Decimal
 from flask import Blueprint, flash, g, render_template, request
 
 from app.auth import login_required
-from app.budget import access_condition, get_budget_summary, month_bounds
+from app.budget import (
+    access_condition,
+    get_budget_summary,
+    month_bounds,
+    savings_access_condition,
+)
 from app.db import get_db
 from app.utils import format_money
 
@@ -14,7 +19,6 @@ analytics_bp = Blueprint("analytics", __name__)
 
 def period_bounds(period, date_from_raw="", date_to_raw=""):
     today = date.today()
-
     if period == "day":
         return today, today + timedelta(days=1)
     if period == "week":
@@ -69,44 +73,92 @@ def period_label(period_date, grouping):
     return period_date.strftime("%Y")
 
 
-def analytics_for_scope(scope, start, end, grouping):
-    condition, parameters = access_condition(scope)
-    group_expression = {
-        "day": "t.transaction_date",
-        "week": "DATE_TRUNC('week', t.transaction_date)::date",
-        "month": "DATE_TRUNC('month', t.transaction_date)::date",
-        "year": "DATE_TRUNC('year', t.transaction_date)::date",
+def grouped_date_expression(alias, column, grouping):
+    source = f"{alias}.{column}"
+    return {
+        "day": source,
+        "week": f"DATE_TRUNC('week', {source})::date",
+        "month": f"DATE_TRUNC('month', {source})::date",
+        "year": f"DATE_TRUNC('year', {source})::date",
     }[grouping]
-    date_conditions = []
-    if start is not None:
-        date_conditions.append("t.transaction_date >= %s")
-        parameters.append(start)
-    date_conditions.append("t.transaction_date < %s")
-    parameters.append(end)
-    dates_sql = " AND ".join(date_conditions)
 
-    rows = get_db().execute(
+
+def add_date_conditions(alias, column, start, end, parameters):
+    conditions = []
+    if start is not None:
+        conditions.append(f"{alias}.{column} >= %s")
+        parameters.append(start)
+    conditions.append(f"{alias}.{column} < %s")
+    parameters.append(end)
+    return " AND ".join(conditions)
+
+
+def analytics_for_scope(scope, start, end, grouping):
+    database = get_db()
+    transaction_condition, transaction_parameters = access_condition(scope)
+    transaction_group = grouped_date_expression("t", "transaction_date", grouping)
+    transaction_dates = add_date_conditions(
+        "t", "transaction_date", start, end, transaction_parameters
+    )
+    transaction_rows = database.execute(
         f"""
-        SELECT {group_expression} AS period,
+        SELECT {transaction_group} AS period,
                COALESCE(SUM(amount) FILTER (WHERE type = 'income'), 0) AS income,
-               COALESCE(SUM(amount) FILTER (
-                   WHERE type IN ('expense', 'savings_withdrawal')
-               ), 0) AS expenses,
-               COALESCE(SUM(amount) FILTER (
-                   WHERE type = 'savings_deposit'
-               ), 0) AS savings_deposits,
-               COALESCE(SUM(amount) FILTER (
-                   WHERE type = 'savings_withdrawal'
-               ), 0) AS savings_withdrawals
+               COALESCE(SUM(amount) FILTER (WHERE type = 'expense'), 0) AS expenses
         FROM transactions AS t
-        WHERE {condition} AND {dates_sql}
-        GROUP BY {group_expression}
-        ORDER BY {group_expression}
+        WHERE {transaction_condition} AND {transaction_dates}
+        GROUP BY {transaction_group}
         """,
-        parameters,
+        transaction_parameters,
     ).fetchall()
 
+    savings_condition, savings_parameters = savings_access_condition(scope)
+    savings_group = grouped_date_expression("s", "entry_date", grouping)
+    savings_dates = add_date_conditions(
+        "s", "entry_date", start, end, savings_parameters
+    )
+    savings_rows = database.execute(
+        f"""
+        SELECT {savings_group} AS period,
+               COALESCE(SUM(amount) FILTER (
+                   WHERE entry_type = 'deposit'
+               ), 0) AS savings_deposits,
+               COALESCE(SUM(amount) FILTER (
+                   WHERE entry_type = 'withdrawal'
+               ), 0) AS savings_withdrawals
+        FROM savings_entries AS s
+        WHERE {savings_condition} AND {savings_dates}
+        GROUP BY {savings_group}
+        """,
+        savings_parameters,
+    ).fetchall()
+
+    points = {}
+    for row in transaction_rows:
+        points[row["period"]] = {
+            "period": row["period"],
+            "income": row["income"],
+            "expenses": row["expenses"],
+            "savings_deposits": Decimal("0"),
+            "savings_withdrawals": Decimal("0"),
+        }
+    for row in savings_rows:
+        point = points.setdefault(
+            row["period"],
+            {
+                "period": row["period"],
+                "income": Decimal("0"),
+                "expenses": Decimal("0"),
+                "savings_deposits": Decimal("0"),
+                "savings_withdrawals": Decimal("0"),
+            },
+        )
+        point["savings_deposits"] = row["savings_deposits"]
+        point["savings_withdrawals"] = row["savings_withdrawals"]
+
+    rows = [points[key] for key in sorted(points)]
     raw_values = []
+    currency = g.user["currency"]
     for row in rows:
         row["savings_change"] = row["savings_deposits"] - row["savings_withdrawals"]
         row["label"] = period_label(row["period"], grouping)
@@ -118,6 +170,14 @@ def analytics_for_scope(scope, start, end, grouping):
                 row["savings_withdrawals"],
             ]
         )
+        for name in (
+            "income",
+            "expenses",
+            "savings_deposits",
+            "savings_withdrawals",
+            "savings_change",
+        ):
+            row[f"{name}_display"] = format_money(row[name], currency)
 
     totals = {
         "income": sum((row["income"] for row in rows), Decimal("0")),
@@ -129,39 +189,22 @@ def analytics_for_scope(scope, start, end, grouping):
             (row["savings_withdrawals"] for row in rows), Decimal("0")
         ),
     }
-    totals["savings_change"] = (
-        totals["savings_deposits"] - totals["savings_withdrawals"]
-    )
+    totals["savings_change"] = totals["savings_deposits"] - totals["savings_withdrawals"]
 
-    category_parameters = list(parameters)
-    categories = get_db().execute(
+    category_parameters = list(transaction_parameters)
+    categories = database.execute(
         f"""
-        SELECT c.name,
-               SUM(t.amount) AS amount
+        SELECT c.name, SUM(t.amount) AS amount
         FROM transactions AS t
         JOIN categories AS c ON c.id = t.category_id
-        WHERE {condition} AND {dates_sql}
-          AND t.type IN ('expense', 'savings_withdrawal')
+        WHERE {transaction_condition} AND {transaction_dates}
+          AND t.type = 'expense'
         GROUP BY c.id, c.name
         ORDER BY amount DESC
         LIMIT 8
         """,
         category_parameters,
     ).fetchall()
-
-    max_value = max(raw_values + [Decimal("1")])
-    currency = g.user["currency"]
-    for row in rows:
-        row["income_display"] = format_money(row["income"], currency)
-        row["expenses_display"] = format_money(row["expenses"], currency)
-        row["savings_deposits_display"] = format_money(
-            row["savings_deposits"], currency
-        )
-        row["savings_withdrawals_display"] = format_money(
-            row["savings_withdrawals"], currency
-        )
-        row["savings_change_display"] = format_money(row["savings_change"], currency)
-
     for category in categories:
         category["amount_display"] = format_money(category["amount"], currency)
 
@@ -170,7 +213,7 @@ def analytics_for_scope(scope, start, end, grouping):
         "scope": scope,
         "rows": rows,
         "categories": categories,
-        "max_value": max_value,
+        "max_value": max(raw_values + [Decimal("1")]),
         "totals": {
             **totals,
             **{
@@ -208,16 +251,12 @@ def index():
     if grouping not in {"auto", "day", "week", "month", "year"}:
         grouping = "auto"
     effective_grouping = automatic_grouping(start, end) if grouping == "auto" else grouping
-
     scopes = (
         ["personal", "family"]
         if selected_scope == "all" and g.family is not None
         else [selected_scope]
     )
-    series = [
-        analytics_for_scope(scope, start, end, effective_grouping)
-        for scope in scopes
-    ]
+    series = [analytics_for_scope(scope, start, end, effective_grouping) for scope in scopes]
 
     return render_template(
         "analytics/index.html",

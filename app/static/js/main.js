@@ -19,7 +19,6 @@ for (const form of categoryForms) {
         "[data-category-select], [data-parent-category-select]",
     );
     const scopeControls = form.querySelectorAll("[data-scope-controls] input[name='scope']");
-    const expenseSourceControls = form.querySelectorAll("input[name='expense_source']");
 
     if (!typeControls.length || !categorySelects.length) {
         continue;
@@ -27,10 +26,7 @@ for (const form of categoryForms) {
 
     const updateCategoryOptions = () => {
         const checkedTypeInput = form.querySelector("input[name='type']:checked");
-        const expenseSource = form.querySelector("input[name='expense_source']:checked")?.value;
-        const checkedType = checkedTypeInput?.value === "expense" && expenseSource === "savings"
-            ? "savings"
-            : checkedTypeInput?.dataset.categoryType || checkedTypeInput?.value;
+        const checkedType = checkedTypeInput?.dataset.categoryType || checkedTypeInput?.value;
         const checkedScope = form.querySelector("input[name='scope']:checked")?.value
             || form.querySelector("input[name='scope'][type='hidden']")?.value;
         if (!checkedType) {
@@ -60,23 +56,28 @@ for (const form of categoryForms) {
     for (const control of scopeControls) {
         control.addEventListener("change", updateCategoryOptions);
     }
-    for (const control of expenseSourceControls) {
-        control.addEventListener("change", updateCategoryOptions);
-    }
     updateCategoryOptions();
 }
 
-for (const form of document.querySelectorAll("[data-transaction-form]")) {
-    const sourceBlock = form.querySelector("[data-expense-source]");
-    const typeInputs = form.querySelectorAll("input[name='type']");
-    const updateSource = () => {
-        const type = form.querySelector("input[name='type']:checked")?.value;
-        sourceBlock.hidden = type !== "expense";
-    };
-    for (const input of typeInputs) {
-        input.addEventListener("change", updateSource);
+for (const opener of document.querySelectorAll("[data-dialog-open]")) {
+    opener.addEventListener("click", () => {
+        const dialog = document.getElementById(opener.dataset.dialogOpen);
+        if (dialog?.showModal) {
+            dialog.showModal();
+            dialog.querySelector("input[name='amount']")?.focus();
+        }
+    });
+}
+
+for (const dialog of document.querySelectorAll("dialog")) {
+    for (const closer of dialog.querySelectorAll("[data-dialog-close]")) {
+        closer.addEventListener("click", () => dialog.close());
     }
-    updateSource();
+    dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) {
+            dialog.close();
+        }
+    });
 }
 
 for (const form of document.querySelectorAll("[data-analytics-filter]")) {

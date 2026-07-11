@@ -38,6 +38,22 @@ def access_condition(scope, alias="t"):
     raise ValueError("Unknown budget scope.")
 
 
+def savings_access_condition(scope, alias="s"):
+    personal_sql = f"({alias}.scope = 'personal' AND {alias}.user_id = %s)"
+    personal_params = [g.user["id"]]
+
+    if scope == "personal" or g.family is None:
+        return personal_sql, personal_params
+
+    family_sql = f"({alias}.scope = 'family' AND {alias}.family_id = %s)"
+    family_params = [g.family["id"]]
+    if scope == "family":
+        return family_sql, family_params
+    if scope in {"all", "compare"}:
+        return f"({personal_sql} OR {family_sql})", personal_params + family_params
+    raise ValueError("Unknown savings scope.")
+
+
 def get_monthly_limit(scope, month_start):
     if scope == "personal":
         row = get_db().execute(
@@ -138,14 +154,7 @@ def get_budget_summary(scope, day=None):
         f"""
         SELECT
             COALESCE(SUM(amount) FILTER (WHERE type = 'income'), 0) AS income,
-            COALESCE(SUM(amount) FILTER (WHERE type = 'expense'), 0) AS budget_expenses,
-            COALESCE(SUM(amount) FILTER (
-                WHERE type IN ('expense', 'savings_withdrawal')
-            ), 0) AS expenses,
-            COALESCE(SUM(amount) FILTER (WHERE type = 'savings_deposit'), 0)
-                AS savings_deposits,
-            COALESCE(SUM(amount) FILTER (WHERE type = 'savings_withdrawal'), 0)
-                AS savings_withdrawals
+            COALESCE(SUM(amount) FILTER (WHERE type = 'expense'), 0) AS expenses
         FROM transactions AS t
         WHERE {condition}
           AND t.transaction_date >= %s
@@ -154,24 +163,25 @@ def get_budget_summary(scope, day=None):
         parameters + [month_start, next_month],
     ).fetchone()
 
+    savings_condition, savings_parameters = savings_access_condition(scope)
     savings_row = database.execute(
         f"""
         SELECT COALESCE(SUM(
             CASE
-                WHEN type = 'savings_deposit' THEN amount
-                WHEN type = 'savings_withdrawal' THEN -amount
+                WHEN entry_type = 'deposit' THEN amount
+                WHEN entry_type = 'withdrawal' THEN -amount
                 ELSE 0
             END
         ), 0) AS savings
-        FROM transactions AS t
-        WHERE {condition}
+        FROM savings_entries AS s
+        WHERE {savings_condition}
         """,
-        parameters,
+        savings_parameters,
     ).fetchone()
 
     spending_limit = get_monthly_limit(scope, month_start)
     balance = (
-        spending_limit - totals["budget_expenses"]
+        spending_limit - totals["expenses"]
         if spending_limit is not None
         else None
     )
@@ -193,3 +203,33 @@ def get_budget_summary(scope, day=None):
         "savings": format_money(savings_row["savings"], currency),
         "balance_negative": balance is not None and balance < 0,
     }
+
+
+def get_savings_entries(scope, limit=20):
+    if not scope_is_available(scope):
+        return []
+
+    condition, parameters = savings_access_condition(scope)
+    entries = get_db().execute(
+        f"""
+        SELECT s.id, s.entry_type, s.amount, s.entry_date, s.reason,
+               s.scope, s.user_id, u.name AS member
+        FROM savings_entries AS s
+        JOIN users AS u ON u.id = s.user_id
+        WHERE {condition}
+        ORDER BY s.entry_date DESC, s.created_at DESC
+        LIMIT %s
+        """,
+        parameters + [limit],
+    ).fetchall()
+
+    for entry in entries:
+        entry["amount_display"] = format_money(
+            entry["amount"],
+            g.user["currency"],
+            entry["entry_type"],
+        )
+        entry["type_label"] = (
+            "Пополнение" if entry["entry_type"] == "deposit" else "Трата"
+        )
+    return entries

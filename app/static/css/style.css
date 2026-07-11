@@ -1171,7 +1171,8 @@ input[type="color"] {
     gap: 0.65rem;
 }
 
-.budget-mini-stats > div {
+.budget-mini-stats > div,
+.savings-tile {
     padding: 0.8rem;
     display: grid;
     gap: 0.25rem;
@@ -1180,13 +1181,42 @@ input[type="color"] {
     background: rgba(255, 255, 255, 0.72);
 }
 
-.budget-panel--family .budget-mini-stats > div {
+.budget-panel--family .budget-mini-stats > div,
+.budget-panel--family .savings-tile {
     border-color: var(--purple-200);
 }
 
 .budget-mini-stats span {
     color: var(--slate-500);
     font-size: 0.76rem;
+}
+
+.savings-tile {
+    width: 100%;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.savings-tile:hover,
+.savings-stat:hover {
+    transform: translateY(-2px);
+    border-color: var(--blue-300);
+    box-shadow: 0 12px 25px rgba(37, 99, 235, 0.12);
+}
+
+.savings-tile--family:hover,
+.savings-stat--family:hover {
+    border-color: var(--purple-300);
+    box-shadow: 0 12px 25px rgba(126, 34, 206, 0.14);
+}
+
+.savings-tile small,
+.savings-stat small {
+    color: var(--slate-500);
+    font-size: 0.72rem;
 }
 
 .limit-form {
@@ -1244,8 +1274,76 @@ input[type="color"] {
 }
 
 .amount--savings_withdrawal,
+.amount--withdrawal,
 .amount--negative {
     color: var(--red) !important;
+}
+
+.amount--deposit {
+    color: #0f766e;
+}
+
+.savings-stat {
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.savings-dialog {
+    width: min(520px, calc(100% - 2rem));
+    padding: 0;
+    border: 1px solid var(--blue-200);
+    border-radius: 20px;
+    color: var(--slate-900);
+    background: linear-gradient(145deg, #ffffff 20%, #eff6ff 100%);
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+}
+
+.savings-dialog--family {
+    border-color: var(--purple-200);
+    background: linear-gradient(145deg, #ffffff 20%, #faf5ff 100%);
+}
+
+.savings-dialog::backdrop {
+    background: rgba(15, 23, 42, 0.52);
+    backdrop-filter: blur(4px);
+}
+
+.savings-dialog[open] {
+    animation: dialog-arrive 180ms ease-out;
+}
+
+.savings-dialog form {
+    padding: 1.5rem;
+}
+
+.dialog-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.dialog-heading h2 {
+    margin: 0.2rem 0 0;
+}
+
+.dialog-close {
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 0;
+    border-radius: 50%;
+    color: var(--slate-600);
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+@keyframes dialog-arrive {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .family-row {

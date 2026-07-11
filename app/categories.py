@@ -124,7 +124,7 @@ def validate_category_form(category_id=None, original=None):
         return None, "Область существующей категории изменить нельзя."
     if len(name) < 2 or len(name) > 80:
         return None, "Название должно содержать от 2 до 80 символов."
-    if category_type not in {"income", "expense", "savings"}:
+    if category_type not in {"income", "expense"}:
         return None, "Выберите тип категории."
     if icon is not None and len(icon) > 2:
         return None, "Символ категории должен содержать не более 2 знаков."

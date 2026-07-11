@@ -17,9 +17,9 @@ def format_money(amount, currency="RUB", transaction_type=None):
     formatted = f"{value:,.2f}".replace(",", " ").replace(".", ",")
     symbol = CURRENCY_SYMBOLS.get(currency, currency)
 
-    if transaction_type in {"income", "savings_deposit"}:
+    if transaction_type in {"income", "savings_deposit", "deposit"}:
         prefix = "+"
-    elif transaction_type in {"expense", "savings_withdrawal"}:
+    elif transaction_type in {"expense", "savings_withdrawal", "withdrawal"}:
         prefix = "−"
     elif value_is_negative:
         prefix = "−"
@@ -56,9 +56,7 @@ def parse_nonnegative_amount(raw_value):
 def transaction_type_label(transaction_type):
     return {
         "income": "Доход",
-        "expense": "Расход из лимита",
-        "savings_deposit": "Пополнение сбережений",
-        "savings_withdrawal": "Расход из сбережений",
+        "expense": "Расход",
     }.get(transaction_type, transaction_type)
 
 

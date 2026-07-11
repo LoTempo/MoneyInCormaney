@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/savings_dialog.html" import savings_dialog with context %}
 
 {% set is_family = scope == 'family' %}
 {% block title %}{{ "Семейный" if is_family else "Личный" }} бюджет — Семейный бюджет{% endblock %}
@@ -41,7 +42,37 @@
     <article class="card stat-card"><span class="stat-label">Лимит</span><strong>{{ summary.limit }}</strong></article>
     <article class="card stat-card"><span class="stat-label">Доходы</span><strong class="amount--income">{{ summary.income }}</strong></article>
     <article class="card stat-card"><span class="stat-label">Расходы</span><strong class="amount--expense">{{ summary.expenses }}</strong></article>
-    <article class="card stat-card"><span class="stat-label">Сбережения</span><strong class="amount--savings">{{ summary.savings }}</strong></article>
+    <button class="card stat-card savings-stat {% if is_family %}savings-stat--family{% endif %}" type="button"
+            data-dialog-open="savings-dialog-{{ scope }}">
+        <span class="stat-label">Сбережения</span>
+        <strong class="amount--savings">{{ summary.savings }}</strong>
+        <small>Нажмите, чтобы пополнить или потратить</small>
+    </button>
+</section>
+
+{{ savings_dialog(scope, scope, is_family) }}
+
+<section class="card content-card {% if is_family %}family-surface{% endif %}">
+    <div class="section-heading">
+        <h2>История сбережений</h2>
+        <p>Пополнения и траты хранятся отдельно от обычных операций.</p>
+    </div>
+    {% if savings_entries %}
+        <div class="table-wrap"><table>
+            <thead><tr><th>Причина</th><th>Действие</th><th>Автор</th><th>Дата</th><th class="align-right">Сумма</th></tr></thead>
+            <tbody>{% for entry in savings_entries %}
+                <tr class="{% if is_family %}family-row{% endif %}">
+                    <td>{{ entry.reason }}{% if is_family %} <span class="tag tag--family"># Семейная</span>{% endif %}</td>
+                    <td>{{ entry.type_label }}</td>
+                    <td>{{ entry.member }}</td>
+                    <td>{{ entry.entry_date.strftime('%d.%m.%Y') }}</td>
+                    <td class="align-right amount amount--{{ entry.entry_type }}">{{ entry.amount_display }}</td>
+                </tr>
+            {% endfor %}</tbody>
+        </table></div>
+    {% else %}
+        <div class="empty-state"><h3>Записей пока нет</h3><p>Нажмите на карточку сбережений, чтобы сделать первое пополнение.</p></div>
+    {% endif %}
 </section>
 
 <section class="card content-card {% if is_family %}family-surface{% endif %}">

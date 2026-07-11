@@ -54,6 +54,7 @@ class DatabaseIntegrationTest(unittest.TestCase):
             "app.dashboard",
             "app.family",
             "app.settings",
+            "app.savings",
             "app.transactions",
         ):
             self.patches.enter_context(
@@ -137,7 +138,6 @@ class DatabaseIntegrationTest(unittest.TestCase):
         category_id,
         amount,
         description,
-        expense_source="budget",
     ):
         token = self.csrf_from(client, f"/transactions/new?scope={scope}")
         return client.post(
@@ -146,12 +146,25 @@ class DatabaseIntegrationTest(unittest.TestCase):
                 "_csrf_token": token,
                 "scope": scope,
                 "type": form_type,
-                "expense_source": expense_source,
                 "amount": str(amount),
                 "date": date.today().isoformat(),
                 "category_id": str(category_id),
                 "description": description,
                 "note": "Integration test",
+            },
+        )
+
+    def change_savings(self, client, scope, entry_type, amount, reason):
+        path = "/" if scope == "personal" else "/budget/family"
+        token = self.csrf_from(client, path)
+        return client.post(
+            f"/savings/{scope}/change",
+            data={
+                "_csrf_token": token,
+                "entry_type": entry_type,
+                "amount": str(amount),
+                "reason": reason,
+                "return_to": "home",
             },
         )
 
@@ -173,9 +186,6 @@ class DatabaseIntegrationTest(unittest.TestCase):
 
         expense_category = self.create_category(
             owner, "Personal Expense", "expense", "personal"
-        )
-        savings_category = self.create_category(
-            owner, "Personal Savings", "savings", "personal"
         )
 
         token = self.csrf_from(owner, "/")
@@ -201,25 +211,22 @@ class DatabaseIntegrationTest(unittest.TestCase):
             302,
         )
         self.assertEqual(
-            self.create_transaction(
+            self.change_savings(
                 owner,
                 "personal",
-                "savings_deposit",
-                savings_category,
+                "deposit",
                 "2000",
                 "Personal savings deposit",
             ).status_code,
             302,
         )
         self.assertEqual(
-            self.create_transaction(
+            self.change_savings(
                 owner,
                 "personal",
-                "expense",
-                savings_category,
+                "withdrawal",
                 "500",
                 "Personal savings spend",
-                expense_source="savings",
             ).status_code,
             302,
         )
@@ -228,19 +235,17 @@ class DatabaseIntegrationTest(unittest.TestCase):
         self.assertIn("3 750,00".encode("utf-8"), personal_page.data)
         self.assertIn("1 500,00".encode("utf-8"), personal_page.data)
 
-        overdraw = self.create_transaction(
+        overdraw = self.change_savings(
             owner,
             "personal",
-            "expense",
-            savings_category,
+            "withdrawal",
             "1600",
             "Rejected savings overdraw",
-            expense_source="savings",
         )
-        self.assertEqual(overdraw.status_code, 200)
+        self.assertEqual(overdraw.status_code, 302)
         self.assertEqual(
             self.connection.execute(
-                "SELECT COUNT(*) AS count FROM transactions WHERE description = %s",
+                "SELECT COUNT(*) AS count FROM savings_entries WHERE reason = %s",
                 ("Rejected savings overdraw",),
             ).fetchone()["count"],
             0,
@@ -279,9 +284,6 @@ class DatabaseIntegrationTest(unittest.TestCase):
         family_expense = self.create_category(
             owner, "Family Expense", "expense", "family"
         )
-        family_savings = self.create_category(
-            owner, "Family Savings", "savings", "family"
-        )
 
         token = self.csrf_from(owner, "/")
         self.assertEqual(
@@ -311,25 +313,22 @@ class DatabaseIntegrationTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            self.create_transaction(
+            self.change_savings(
                 owner,
                 "family",
-                "savings_deposit",
-                family_savings,
+                "deposit",
                 "3000",
                 "Owner family savings",
             ).status_code,
             302,
         )
         self.assertEqual(
-            self.create_transaction(
-                owner,
+            self.change_savings(
+                member,
                 "family",
-                "expense",
-                family_savings,
+                "withdrawal",
                 "1000",
                 "Family savings spend",
-                expense_source="savings",
             ).status_code,
             302,
         )

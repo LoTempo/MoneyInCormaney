@@ -35,53 +35,9 @@ def get_category_options():
 
 def resolve_transaction_type():
     form_type = request.form.get("type", "")
-    expense_source = request.form.get("expense_source", "budget")
-
-    if form_type == "expense" and expense_source == "savings":
-        return "savings_withdrawal", "savings"
-    if form_type == "expense":
-        return "expense", "expense"
-    if form_type == "income":
-        return "income", "income"
-    if form_type == "savings_deposit":
-        return "savings_deposit", "savings"
+    if form_type in {"income", "expense"}:
+        return form_type, form_type
     return None, None
-
-
-def savings_balance_without(scope, excluded_transaction_id=None):
-    database = get_db()
-    if scope == "personal":
-        database.execute(
-            "SELECT id FROM users WHERE id = %s FOR UPDATE",
-            (g.user["id"],),
-        )
-    else:
-        database.execute(
-            "SELECT id FROM families WHERE id = %s FOR UPDATE",
-            (g.family["id"],),
-        )
-
-    condition, parameters = access_condition(scope)
-    excluded_sql = ""
-    if excluded_transaction_id is not None:
-        excluded_sql = "AND t.id <> %s"
-        parameters.append(excluded_transaction_id)
-
-    row = database.execute(
-        f"""
-        SELECT COALESCE(SUM(
-            CASE
-                WHEN t.type = 'savings_deposit' THEN t.amount
-                WHEN t.type = 'savings_withdrawal' THEN -t.amount
-                ELSE 0
-            END
-        ), 0) AS savings
-        FROM transactions AS t
-        WHERE {condition} {excluded_sql}
-        """,
-        parameters,
-    ).fetchone()
-    return row["savings"]
 
 
 def validate_transaction_form(existing=None):
@@ -139,24 +95,6 @@ def validate_transaction_form(existing=None):
     if category["type"] != required_category_type:
         return None, "Категория не подходит выбранному типу операции."
 
-    existing_is_savings = existing and existing["type"] in {
-        "savings_deposit",
-        "savings_withdrawal",
-    }
-    new_is_savings = transaction_type in {"savings_deposit", "savings_withdrawal"}
-    if existing_is_savings or new_is_savings:
-        available = savings_balance_without(
-            scope,
-            existing["id"] if existing else None,
-        )
-        effect = (
-            amount
-            if transaction_type == "savings_deposit"
-            else -amount if transaction_type == "savings_withdrawal" else 0
-        )
-        if available + effect < 0:
-            return None, "Недостаточно сбережений для этой операции."
-
     return {
         "scope": scope,
         "family_id": g.family["id"] if scope == "family" else None,
@@ -186,9 +124,7 @@ def transaction_list():
     if selected_type == "income":
         conditions.append("t.type = 'income'")
     elif selected_type == "expense":
-        conditions.append("t.type IN ('expense', 'savings_withdrawal')")
-    elif selected_type == "savings":
-        conditions.append("t.type IN ('savings_deposit', 'savings_withdrawal')")
+        conditions.append("t.type = 'expense'")
     else:
         selected_type = ""
 

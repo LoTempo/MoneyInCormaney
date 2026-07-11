@@ -5,7 +5,7 @@
 
 <section class="card filter-card"><form method="get" class="filter-form filter-form--wide">
     <div class="form-group"><label for="scope">Бюджет</label><select id="scope" name="scope"><option value="all" {% if selected_scope == 'all' %}selected{% endif %}>Все доступные</option><option value="personal" {% if selected_scope == 'personal' %}selected{% endif %}>Личные</option>{% if g.family %}<option value="family" {% if selected_scope == 'family' %}selected{% endif %}>Семейные</option>{% endif %}</select></div>
-    <div class="form-group"><label for="type">Тип</label><select id="type" name="type"><option value="" {% if not selected_type %}selected{% endif %}>Все операции</option><option value="income" {% if selected_type == 'income' %}selected{% endif %}>Доходы</option><option value="expense" {% if selected_type == 'expense' %}selected{% endif %}>Расходы</option><option value="savings" {% if selected_type == 'savings' %}selected{% endif %}>Сбережения</option></select></div>
+    <div class="form-group"><label for="type">Тип</label><select id="type" name="type"><option value="" {% if not selected_type %}selected{% endif %}>Все операции</option><option value="income" {% if selected_type == 'income' %}selected{% endif %}>Доходы</option><option value="expense" {% if selected_type == 'expense' %}selected{% endif %}>Расходы</option></select></div>
     <div class="form-group"><label for="month">Месяц</label><input id="month" name="month" type="month" value="{{ selected_month }}"></div>
     <div class="form-group filter-action"><button class="button button--outline" type="submit">Применить</button></div>
 </form></section>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/savings_dialog.html" import savings_dialog with context %}
 
 {% block title %}Обзор — Семейный бюджет{% endblock %}
 
@@ -21,7 +22,11 @@
     <div class="budget-mini-stats">
         <div><span>Доходы</span><strong class="amount--income">{{ summary.income }}</strong></div>
         <div><span>Расходы</span><strong class="amount--expense">{{ summary.expenses }}</strong></div>
-        <div><span>Сбережения</span><strong class="amount--savings">{{ summary.savings }}</strong></div>
+        <button class="savings-tile {% if family_style %}savings-tile--family{% endif %}" type="button"
+                data-dialog-open="savings-dialog-{{ scope }}">
+            <span>Сбережения</span><strong class="amount--savings">{{ summary.savings }}</strong>
+            <small>Нажмите, чтобы изменить</small>
+        </button>
     </div>
 
     {% if not family_style or g.family.role == 'owner' %}
@@ -41,6 +46,7 @@
         <p class="panel-note">Семейный лимит изменяет владелец семьи.</p>
     {% endif %}
 </article>
+{{ savings_dialog(scope, "home", family_style) }}
 {% endmacro %}
 
 {% block content %}
@@ -110,7 +116,7 @@
         <div class="empty-state">
             <div class="empty-icon" aria-hidden="true">₽</div>
             <h3>Операций пока нет</h3>
-            <p>Добавьте доход, расход или первое пополнение сбережений.</p>
+            <p>Добавьте первый доход или расход. Сбережения изменяются через отдельную карточку выше.</p>
             <a class="button button--outline" href="{{ url_for('transactions.transaction_create') }}">Добавить операцию</a>
         </div>
     {% endif %}

@@ -3,10 +3,8 @@
 {% set is_editing = transaction is defined and transaction %}
 {% set initial_scope = transaction.scope if is_editing else request.args.get('scope', 'personal') %}
 {% set current_scope = request.form.get('scope', initial_scope) %}
-{% set initial_type = ('expense' if is_editing and transaction.type == 'savings_withdrawal' else transaction.type if is_editing else 'expense') %}
+{% set initial_type = transaction.type if is_editing else 'expense' %}
 {% set current_type = request.form.get('type', initial_type) %}
-{% set initial_source = ('savings' if is_editing and transaction.type == 'savings_withdrawal' else 'budget') %}
-{% set current_source = request.form.get('expense_source', initial_source) %}
 {% set current_category = request.form.get('category_id', transaction.category_id if is_editing else '') %}
 {% block title %}{{ "Изменение" if is_editing else "Новая операция" }} — Семейный бюджет{% endblock %}
 
@@ -33,20 +31,10 @@
 
             <div class="form-group">
                 <span class="field-label">Тип операции</span>
-                <div class="choice-grid choice-grid--three" data-category-type-controls>
+                <div class="choice-grid" data-category-type-controls>
                     <label class="choice-card"><input name="type" type="radio" value="expense" data-category-type="expense" {% if current_type == 'expense' %}checked{% endif %}><span>Расход</span></label>
                     <label class="choice-card"><input name="type" type="radio" value="income" data-category-type="income" {% if current_type == 'income' %}checked{% endif %}><span>Доход</span></label>
-                    <label class="choice-card"><input name="type" type="radio" value="savings_deposit" data-category-type="savings" {% if current_type == 'savings_deposit' %}checked{% endif %}><span>В сбережения</span></label>
                 </div>
-            </div>
-
-            <div class="form-group" data-expense-source>
-                <span class="field-label">Источник расхода</span>
-                <div class="choice-grid">
-                    <label class="choice-card"><input name="expense_source" type="radio" value="budget" {% if current_source == 'budget' %}checked{% endif %}><span>Месячный лимит</span></label>
-                    <label class="choice-card"><input name="expense_source" type="radio" value="savings" {% if current_source == 'savings' %}checked{% endif %}><span>Сбережения</span></label>
-                </div>
-                <small>Расход из сбережений уменьшает накопления, но не месячный лимит.</small>
             </div>
 
             <div class="form-grid form-grid--two">

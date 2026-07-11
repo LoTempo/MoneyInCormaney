@@ -11,6 +11,7 @@ from app.db import init_app as init_db_app
 from app.dashboard import dashboard_bp
 from app.family import family_bp
 from app.settings import settings_bp
+from app.savings import savings_bp
 from app.transactions import transactions_bp
 
 
@@ -57,6 +58,7 @@ def create_app(test_config=None):
     app.register_blueprint(family_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(analytics_bp)
+    app.register_blueprint(savings_bp)
 
     @app.after_request
     def add_security_headers(response):

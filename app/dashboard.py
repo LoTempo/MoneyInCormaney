@@ -4,6 +4,7 @@ from app.auth import login_required
 from app.budget import (
     access_condition,
     get_budget_summary,
+    get_savings_entries,
     month_bounds,
     save_monthly_limit,
     scope_is_available,
@@ -69,6 +70,7 @@ def render_budget_page(scope):
         scope=scope,
         summary=get_budget_summary(scope),
         transactions=recent_transactions(scope, limit=20),
+        savings_entries=get_savings_entries(scope, limit=20),
     )
 
 
