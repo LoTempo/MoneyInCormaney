@@ -93,10 +93,17 @@ jobs:
             "https://api.alwaysdata.com/v1/site/$AD_SITE_ID/restart/"
 
       - name: Check website
+        env:
+          HEALTHCHECK_URL: ${{ secrets.ALWAYSDATA_HEALTHCHECK_URL }}
         run: |
+          if [ -z "$HEALTHCHECK_URL" ]; then
+            echo "The ALWAYSDATA_HEALTHCHECK_URL secret is not configured."
+            exit 1
+          fi
+
           for attempt in 1 2 3 4 5 6; do
             if curl --fail --silent --show-error \
-              "https://lotempo.alwaysdata.net/health"; then
+              "$HEALTHCHECK_URL"; then
               echo
               echo "Deployment completed successfully."
               exit 0

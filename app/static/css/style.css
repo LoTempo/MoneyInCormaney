@@ -567,6 +567,28 @@ tbody tr:hover {
     padding: clamp(1.5rem, 5vw, 2.5rem);
 }
 
+.learning-notice {
+    margin: 0 0 1.25rem;
+    padding: 0.95rem 1rem;
+    border: 1px solid var(--blue-200);
+    border-radius: 12px;
+    color: var(--blue-700);
+    background: linear-gradient(135deg, var(--white), var(--blue-100));
+    box-shadow: inset 3px 0 0 var(--blue-500);
+}
+
+.learning-notice strong {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.learning-notice p {
+    margin: 0;
+    color: var(--slate-700);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
 .form-stack {
     display: grid;
     gap: 1.25rem;
