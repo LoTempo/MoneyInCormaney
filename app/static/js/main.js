@@ -7,6 +7,13 @@ for (const element of document.querySelectorAll("[data-category-color]")) {
     }
 }
 
+for (const bar of document.querySelectorAll("[data-bar-width]")) {
+    const width = Number.parseFloat(bar.dataset.barWidth);
+    if (Number.isFinite(width)) {
+        bar.style.width = `${Math.min(100, Math.max(0, width))}%`;
+    }
+}
+
 const formatRussianPhone = (input) => {
     const digits = input.value.replace(/\D/g, "");
     let subscriber = digits;
@@ -112,19 +119,6 @@ for (const dialog of document.querySelectorAll("dialog")) {
             dialog.close();
         }
     });
-}
-
-for (const form of document.querySelectorAll("[data-analytics-filter]")) {
-    const periodSelect = form.querySelector("[data-period-select]");
-    const customDates = form.querySelectorAll("[data-custom-date]");
-    const updateCustomDates = () => {
-        const custom = periodSelect.value === "custom";
-        for (const field of customDates) {
-            field.hidden = !custom;
-        }
-    };
-    periodSelect.addEventListener("change", updateCustomDates);
-    updateCustomDates();
 }
 
 for (const flash of document.querySelectorAll(".flash")) {

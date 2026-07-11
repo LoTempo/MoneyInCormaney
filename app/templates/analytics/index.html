@@ -2,59 +2,156 @@
 
 {% block title %}Аналитика — Семейный бюджет{% endblock %}
 
+{% macro category_list(items, category_type) %}
+    {% if items %}
+        <div class="analytics-category-list">
+            {% for category in items %}
+                <div class="analytics-category">
+                    <div class="analytics-category__heading">
+                        <span><i class="category-color-dot" data-category-color="{{ category.color }}" aria-hidden="true"></i>{{ category.name }}</span>
+                        <strong>{{ category.amount_display }}</strong>
+                    </div>
+                    <div class="analytics-bar"><span class="analytics-bar__fill analytics-bar__fill--{{ category_type }}" data-bar-width="{{ category.percent }}"></span></div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="analytics-empty-small">В этом периоде записей нет.</div>
+    {% endif %}
+{% endmacro %}
+
 {% block content %}
-<div class="page-heading">
-    <div><span class="eyebrow">Динамика финансов</span><h1>Аналитика</h1><p>Сравнивайте доходы, расходы и сбережения за удобный интервал.</p></div>
+<div class="page-heading analytics-heading">
+    <div>
+        <span class="eyebrow">Понятный обзор финансов</span>
+        <h1>Аналитика</h1>
+        <p>Смотрите обычные операции по категориям или отдельно изучайте историю накоплений.</p>
+    </div>
 </div>
 
-<section class="card filter-card analytics-filter">
-    <form method="get" class="analytics-filter__grid" data-analytics-filter>
-        <div class="form-group"><label for="scope">Данные</label><select id="scope" name="scope">
-            <option value="personal" {% if selected_scope == 'personal' %}selected{% endif %}>Личные</option>
-            {% if g.family %}<option value="family" {% if selected_scope == 'family' %}selected{% endif %}>Семейные</option><option value="all" {% if selected_scope == 'all' %}selected{% endif %}>Сравнить</option>{% endif %}
-        </select></div>
-        <div class="form-group"><label for="period">Интервал</label><select id="period" name="period" data-period-select>
-            {% for value, label in [('day','Сегодня'),('week','7 дней'),('month','Месяц'),('quarter','Квартал'),('year','Год'),('all','Всё время'),('custom','Свои даты')] %}
-                <option value="{{ value }}" {% if selected_period == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select></div>
-        <div class="form-group"><label for="group_by">Группировка</label><select id="group_by" name="group_by">
-            {% for value, label in [('auto','Автоматически'),('day','По дням'),('week','По неделям'),('month','По месяцам'),('year','По годам')] %}
-                <option value="{{ value }}" {% if selected_grouping == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select></div>
-        <div class="form-group analytics-custom-date" data-custom-date><label for="date_from">С даты</label><input id="date_from" name="date_from" type="date" value="{{ date_from }}"></div>
-        <div class="form-group analytics-custom-date" data-custom-date><label for="date_to">По дату</label><input id="date_to" name="date_to" type="date" value="{{ date_to }}"></div>
-        <div class="form-group filter-action"><button class="button button--primary" type="submit">Показать</button></div>
-    </form>
-</section>
+<nav class="analytics-tabs" aria-label="Раздел аналитики">
+    <a class="analytics-tab {% if view == 'operations' %}is-active{% endif %}"
+       href="{{ url_for('analytics.index', view='operations', scope=scope, period=period, month=month_value, year=year) }}">Доходы и расходы</a>
+    <a class="analytics-tab analytics-tab--savings {% if view == 'savings' %}is-active{% endif %}"
+       href="{{ url_for('analytics.index', view='savings', scope=scope, year=year) }}">Сбережения</a>
+</nav>
 
-{% for item in series %}
-<section class="analytics-series {% if item.scope == 'family' %}analytics-series--family{% endif %}">
-    <div class="section-heading section-heading--row"><div><span class="eyebrow">{{ "Семейные данные" if item.scope == 'family' else "Личные данные" }}</span><h2>{{ "Семейная" if item.scope == 'family' else "Личная" }} статистика</h2></div><span class="tag {% if item.scope == 'family' %}tag--family{% endif %}">Группировка: {{ effective_grouping }}</span></div>
-    <div class="analytics-kpis">
-        <article class="card stat-card"><span>Доходы</span><strong class="amount--income">{{ item.totals.income_display }}</strong></article>
-        <article class="card stat-card"><span>Расходы</span><strong class="amount--expense">{{ item.totals.expenses_display }}</strong></article>
-        <article class="card stat-card"><span>Состояние сбережений</span><strong class="amount--savings">{{ item.savings_state }}</strong></article>
-        <article class="card stat-card"><span>Изменение сбережений</span><strong>{{ item.totals.savings_change_display }}</strong></article>
-        <article class="card stat-card"><span>Остаток лимита</span><strong class="{% if item.balance_negative %}amount--negative{% endif %}">{{ item.balance }}</strong></article>
+{% if g.family %}
+<nav class="analytics-scope-switch" aria-label="Выбор бюджета">
+    <a class="{% if scope == 'personal' %}is-active{% endif %}"
+       href="{{ url_for('analytics.index', view=view, scope='personal', period=period, month=month_value, year=year) }}">Личный бюджет</a>
+    <a class="analytics-scope-family {% if scope == 'family' %}is-active{% endif %}"
+       href="{{ url_for('analytics.index', view=view, scope='family', period=period, month=month_value, year=year) }}">Семейный бюджет</a>
+</nav>
+{% endif %}
+
+{% if view == 'operations' %}
+    <nav class="analytics-period-switch" aria-label="Период операций">
+        <a class="{% if period == 'month' %}is-active{% endif %}"
+           href="{{ url_for('analytics.index', view='operations', scope=scope, period='month', month=month_value) }}">По месяцам</a>
+        <a class="{% if period == 'year' %}is-active{% endif %}"
+           href="{{ url_for('analytics.index', view='operations', scope=scope, period='year', year=year) }}">За год</a>
+    </nav>
+
+    {% if period == 'month' %}
+        <section class="analytics-navigator {% if scope == 'family' %}analytics-navigator--family{% endif %}">
+            <a class="analytics-arrow" href="{{ url_for('analytics.index', view='operations', scope=scope, period='month', month=previous_month) }}" aria-label="Предыдущий месяц">←</a>
+            <form method="get" class="analytics-date-form">
+                <input type="hidden" name="view" value="operations"><input type="hidden" name="scope" value="{{ scope }}"><input type="hidden" name="period" value="month">
+                <label for="month">Выбранный месяц</label>
+                <div><input id="month" name="month" type="month" value="{{ month_value }}" min="2000-01" max="2100-12"><button class="button button--outline" type="submit">Открыть</button></div>
+            </form>
+            <a class="analytics-arrow" href="{{ url_for('analytics.index', view='operations', scope=scope, period='month', month=following_month) }}" aria-label="Следующий месяц">→</a>
+        </section>
+    {% else %}
+        <section class="analytics-navigator {% if scope == 'family' %}analytics-navigator--family{% endif %}">
+            <a class="analytics-arrow" href="{{ url_for('analytics.index', view='operations', scope=scope, period='year', year=year-1) }}" aria-label="Предыдущий год">←</a>
+            <form method="get" class="analytics-date-form">
+                <input type="hidden" name="view" value="operations"><input type="hidden" name="scope" value="{{ scope }}"><input type="hidden" name="period" value="year">
+                <label for="year">Выбранный год</label>
+                <div><input id="year" name="year" type="number" value="{{ year }}" min="2000" max="2100"><button class="button button--outline" type="submit">Открыть</button></div>
+            </form>
+            <a class="analytics-arrow" href="{{ url_for('analytics.index', view='operations', scope=scope, period='year', year=year+1) }}" aria-label="Следующий год">→</a>
+        </section>
+    {% endif %}
+
+    <div class="section-heading analytics-report-title">
+        <span class="eyebrow">{{ "Семейный бюджет" if scope == 'family' else "Личный бюджет" }}</span>
+        <h2>{{ report.title }}</h2>
     </div>
 
-    <div class="analytics-layout">
-        <div class="card content-card">
-            <div class="section-heading"><h3>Динамика</h3><p>Длина полосы показывает относительный размер суммы.</p></div>
-            {% if item.rows %}<div class="chart-list">
-                {% for row in item.rows %}<div class="chart-row"><strong>{{ row.label }}</strong>
-                    <div class="chart-metric"><span>Доходы</span><progress class="progress--income" value="{{ row.income }}" max="{{ item.max_value }}"></progress><small>{{ row.income_display }}</small></div>
-                    <div class="chart-metric"><span>Расходы</span><progress class="progress--expense" value="{{ row.expenses }}" max="{{ item.max_value }}"></progress><small>{{ row.expenses_display }}</small></div>
-                    <div class="chart-metric"><span>В сбережения</span><progress class="progress--savings" value="{{ row.savings_deposits }}" max="{{ item.max_value }}"></progress><small>{{ row.savings_deposits_display }}</small></div>
-                </div>{% endfor %}
-            </div>{% else %}<div class="empty-state"><h3>Нет данных за выбранный период</h3></div>{% endif %}
-        </div>
-        <aside class="card content-card"><div class="section-heading"><h3>Крупные категории расходов</h3></div>
-            {% if item.categories %}<ol class="category-ranking">{% for category in item.categories %}<li><span>{{ category.name }}</span><strong>{{ category.amount_display }}</strong></li>{% endfor %}</ol>{% else %}<p class="muted-text">Расходов нет.</p>{% endif %}
-        </aside>
-    </div>
-</section>
-{% endfor %}
+    <section class="analytics-summary">
+        <article class="card analytics-summary-card analytics-summary-card--income"><span>Доходы</span><strong>{{ report.totals.income_display }}</strong></article>
+        <article class="card analytics-summary-card analytics-summary-card--expense"><span>Расходы</span><strong>{{ report.totals.expenses_display }}</strong></article>
+        <article class="card analytics-summary-card"><span>Разница</span><strong class="{% if report.totals.difference < 0 %}amount--negative{% endif %}">{{ report.totals.difference_display }}</strong></article>
+    </section>
+
+    {% if period == 'year' %}
+        <section class="card content-card analytics-year-card">
+            <div class="section-heading"><h2>Месяцы года</h2><p>Нажмите на название месяца, чтобы открыть его подробно.</p></div>
+            <div class="analytics-months">
+                {% for item in report.months %}
+                    <article class="analytics-month-row">
+                        <a href="{{ url_for('analytics.index', view='operations', scope=scope, period='month', month=item.value) }}">{{ item.label }}</a>
+                        <div class="analytics-month-values"><span class="amount--income">{{ item.income_display }}</span><span class="amount--expense">{{ item.expenses_display }}</span></div>
+                        <div class="analytics-month-bars"><i class="income" data-bar-width="{{ item.income_percent }}"></i><i class="expense" data-bar-width="{{ item.expenses_percent }}"></i></div>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    <section class="analytics-category-grid">
+        <article class="card content-card analytics-category-card analytics-category-card--income">
+            <div class="section-heading"><h2>Доходы по категориям</h2><p>Откуда поступали деньги.</p></div>
+            {{ category_list(report.categories.income, 'income') }}
+        </article>
+        <article class="card content-card analytics-category-card analytics-category-card--expense">
+            <div class="section-heading"><h2>Расходы по категориям</h2><p>На что были потрачены деньги.</p></div>
+            {{ category_list(report.categories.expense, 'expense') }}
+        </article>
+    </section>
+{% else %}
+    <section class="analytics-navigator analytics-navigator--savings {% if scope == 'family' %}analytics-navigator--family{% endif %}">
+        <a class="analytics-arrow" href="{{ url_for('analytics.index', view='savings', scope=scope, year=year-1) }}" aria-label="Предыдущий год">←</a>
+        <form method="get" class="analytics-date-form">
+            <input type="hidden" name="view" value="savings"><input type="hidden" name="scope" value="{{ scope }}">
+            <label for="savings-year">История за год</label>
+            <div><input id="savings-year" name="year" type="number" value="{{ year }}" min="2000" max="2100"><button class="button button--outline" type="submit">Открыть</button></div>
+        </form>
+        <a class="analytics-arrow" href="{{ url_for('analytics.index', view='savings', scope=scope, year=year+1) }}" aria-label="Следующий год">→</a>
+    </section>
+
+    <div class="section-heading analytics-report-title"><span class="eyebrow">Отдельно от доходов и расходов</span><h2>Сбережения за {{ year }} год</h2></div>
+    <section class="analytics-summary analytics-summary--savings">
+        <article class="card analytics-summary-card"><span>На начало года</span><strong>{{ report.opening_display }}</strong></article>
+        <article class="card analytics-summary-card analytics-summary-card--income"><span>Пополнено</span><strong>{{ report.deposits_display }}</strong></article>
+        <article class="card analytics-summary-card analytics-summary-card--expense"><span>Потрачено</span><strong>{{ report.withdrawals_display }}</strong></article>
+        <article class="card analytics-summary-card analytics-summary-card--savings"><span>На конец года</span><strong>{{ report.closing_display }}</strong></article>
+    </section>
+
+    <section class="card content-card analytics-savings-card">
+        <div class="section-heading"><h2>Как менялся остаток</h2><p>Каждая строка показывает движение сбережений за один месяц.</p></div>
+        <div class="table-wrap"><table>
+            <thead><tr><th>Месяц</th><th class="align-right">Пополнено</th><th class="align-right">Потрачено</th><th class="align-right">Изменение</th><th class="align-right">Остаток</th></tr></thead>
+            <tbody>{% for item in report.rows %}<tr class="{{ 'family-row' if scope == 'family' else 'personal-row' }}">
+                <td><strong>{{ item.label }}</strong><div class="savings-balance-track"><i data-bar-width="{{ item.balance_percent }}"></i></div></td>
+                <td class="align-right amount--income">{{ item.deposits_display }}</td>
+                <td class="align-right amount--expense">{{ item.withdrawals_display }}</td>
+                <td class="align-right {% if item.change < 0 %}amount--negative{% endif %}">{{ item.change_display }}</td>
+                <td class="align-right amount--savings"><strong>{{ item.balance_display }}</strong></td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+    </section>
+
+    <section class="card content-card {% if scope == 'family' %}family-surface{% endif %}">
+        <div class="section-heading"><h2>Записи за {{ year }} год</h2><p>Подробные причины пополнений и трат.</p></div>
+        {% if report.entries %}<div class="table-wrap"><table>
+            <thead><tr><th>Причина</th><th>Действие</th><th>Автор</th><th>Дата</th><th class="align-right">Сумма</th></tr></thead>
+            <tbody>{% for entry in report.entries %}<tr class="{{ 'family-row' if scope == 'family' else 'personal-row' }}">
+                <td>{{ entry.reason }}</td><td>{{ entry.type_label }}</td><td>{{ entry.member }}</td><td>{{ entry.entry_date.strftime('%d.%m.%Y') }}</td><td class="align-right amount--{{ entry.entry_type }}">{{ entry.amount_display }}</td>
+            </tr>{% endfor %}</tbody>
+        </table></div>{% else %}<div class="empty-state"><h3>Записей за этот год нет</h3><p>Пополнения и траты появятся здесь после изменения сбережений.</p></div>{% endif %}
+    </section>
+{% endif %}
 {% endblock %}

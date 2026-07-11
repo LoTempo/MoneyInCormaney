@@ -1,270 +1,303 @@
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
-from flask import Blueprint, flash, g, render_template, request
+from flask import Blueprint, g, render_template, request
 
 from app.auth import login_required
-from app.budget import (
-    access_condition,
-    get_budget_summary,
-    month_bounds,
-    savings_access_condition,
-)
+from app.budget import access_condition, savings_access_condition
 from app.db import get_db
 from app.utils import format_money
 
 
 analytics_bp = Blueprint("analytics", __name__)
 
+MONTH_NAMES = (
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
+)
 
-def period_bounds(period, date_from_raw="", date_to_raw=""):
+
+def next_month(month_start, offset=1):
+    month_index = month_start.year * 12 + month_start.month - 1 + offset
+    return date(month_index // 12, month_index % 12 + 1, 1)
+
+
+def selected_month():
+    raw_value = request.args.get("month", "")
+    try:
+        value = date.fromisoformat(f"{raw_value}-01")
+        if 2000 <= value.year <= 2100:
+            return value
+    except ValueError:
+        pass
     today = date.today()
-    if period == "day":
-        return today, today + timedelta(days=1)
-    if period == "week":
-        return today - timedelta(days=6), today + timedelta(days=1)
-    if period == "month":
-        return month_bounds(today)
-    if period == "quarter":
-        quarter_month = ((today.month - 1) // 3) * 3 + 1
-        start = date(today.year, quarter_month, 1)
-        end = (
-            date(today.year + 1, 1, 1)
-            if quarter_month == 10
-            else date(today.year, quarter_month + 3, 1)
-        )
-        return start, end
-    if period == "year":
-        return date(today.year, 1, 1), date(today.year + 1, 1, 1)
-    if period == "all":
-        return None, today + timedelta(days=1)
-    if period == "custom":
-        try:
-            start = date.fromisoformat(date_from_raw)
-            inclusive_end = date.fromisoformat(date_to_raw)
-        except ValueError:
-            return None, None
-        if start > inclusive_end or (inclusive_end - start).days > 3650:
-            return None, None
-        return start, inclusive_end + timedelta(days=1)
-    return month_bounds(today)
+    return date(today.year, today.month, 1)
 
 
-def automatic_grouping(start, end):
-    if start is None:
-        return "year"
-    days = (end - start).days
-    if days <= 45:
-        return "day"
-    if days <= 180:
-        return "week"
-    if days <= 1095:
-        return "month"
-    return "year"
+def selected_year():
+    try:
+        year = int(request.args.get("year", date.today().year))
+    except (TypeError, ValueError):
+        year = date.today().year
+    return min(2100, max(2000, year))
 
 
-def period_label(period_date, grouping):
-    if grouping == "day":
-        return period_date.strftime("%d.%m.%Y")
-    if grouping == "week":
-        return f"Неделя с {period_date.strftime('%d.%m.%Y')}"
-    if grouping == "month":
-        return period_date.strftime("%m.%Y")
-    return period_date.strftime("%Y")
+def selected_scope():
+    scope = request.args.get("scope", "personal")
+    if scope == "family" and g.family is not None:
+        return "family"
+    return "personal"
 
 
-def grouped_date_expression(alias, column, grouping):
-    source = f"{alias}.{column}"
-    return {
-        "day": source,
-        "week": f"DATE_TRUNC('week', {source})::date",
-        "month": f"DATE_TRUNC('month', {source})::date",
-        "year": f"DATE_TRUNC('year', {source})::date",
-    }[grouping]
-
-
-def add_date_conditions(alias, column, start, end, parameters):
-    conditions = []
-    if start is not None:
-        conditions.append(f"{alias}.{column} >= %s")
-        parameters.append(start)
-    conditions.append(f"{alias}.{column} < %s")
-    parameters.append(end)
-    return " AND ".join(conditions)
-
-
-def analytics_for_scope(scope, start, end, grouping):
-    database = get_db()
-    transaction_condition, transaction_parameters = access_condition(scope)
-    transaction_group = grouped_date_expression("t", "transaction_date", grouping)
-    transaction_dates = add_date_conditions(
-        "t", "transaction_date", start, end, transaction_parameters
-    )
-    transaction_rows = database.execute(
+def operation_totals(scope, start, end):
+    condition, parameters = access_condition(scope)
+    row = get_db().execute(
         f"""
-        SELECT {transaction_group} AS period,
-               COALESCE(SUM(amount) FILTER (WHERE type = 'income'), 0) AS income,
-               COALESCE(SUM(amount) FILTER (WHERE type = 'expense'), 0) AS expenses
+        SELECT COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'income'), 0) AS income,
+               COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'expense'), 0) AS expenses
         FROM transactions AS t
-        WHERE {transaction_condition} AND {transaction_dates}
-        GROUP BY {transaction_group}
+        WHERE {condition}
+          AND t.transaction_date >= %s
+          AND t.transaction_date < %s
         """,
-        transaction_parameters,
-    ).fetchall()
+        parameters + [start, end],
+    ).fetchone()
+    return {"income": row["income"], "expenses": row["expenses"]}
 
-    savings_condition, savings_parameters = savings_access_condition(scope)
-    savings_group = grouped_date_expression("s", "entry_date", grouping)
-    savings_dates = add_date_conditions(
-        "s", "entry_date", start, end, savings_parameters
-    )
-    savings_rows = database.execute(
+
+def category_breakdown(scope, start, end):
+    condition, parameters = access_condition(scope)
+    rows = get_db().execute(
         f"""
-        SELECT {savings_group} AS period,
-               COALESCE(SUM(amount) FILTER (
-                   WHERE entry_type = 'deposit'
-               ), 0) AS savings_deposits,
-               COALESCE(SUM(amount) FILTER (
-                   WHERE entry_type = 'withdrawal'
-               ), 0) AS savings_withdrawals
-        FROM savings_entries AS s
-        WHERE {savings_condition} AND {savings_dates}
-        GROUP BY {savings_group}
-        """,
-        savings_parameters,
-    ).fetchall()
-
-    points = {}
-    for row in transaction_rows:
-        points[row["period"]] = {
-            "period": row["period"],
-            "income": row["income"],
-            "expenses": row["expenses"],
-            "savings_deposits": Decimal("0"),
-            "savings_withdrawals": Decimal("0"),
-        }
-    for row in savings_rows:
-        point = points.setdefault(
-            row["period"],
-            {
-                "period": row["period"],
-                "income": Decimal("0"),
-                "expenses": Decimal("0"),
-                "savings_deposits": Decimal("0"),
-                "savings_withdrawals": Decimal("0"),
-            },
-        )
-        point["savings_deposits"] = row["savings_deposits"]
-        point["savings_withdrawals"] = row["savings_withdrawals"]
-
-    rows = [points[key] for key in sorted(points)]
-    raw_values = []
-    currency = g.user["currency"]
-    for row in rows:
-        row["savings_change"] = row["savings_deposits"] - row["savings_withdrawals"]
-        row["label"] = period_label(row["period"], grouping)
-        raw_values.extend(
-            [
-                row["income"],
-                row["expenses"],
-                row["savings_deposits"],
-                row["savings_withdrawals"],
-            ]
-        )
-        for name in (
-            "income",
-            "expenses",
-            "savings_deposits",
-            "savings_withdrawals",
-            "savings_change",
-        ):
-            row[f"{name}_display"] = format_money(row[name], currency)
-
-    totals = {
-        "income": sum((row["income"] for row in rows), Decimal("0")),
-        "expenses": sum((row["expenses"] for row in rows), Decimal("0")),
-        "savings_deposits": sum(
-            (row["savings_deposits"] for row in rows), Decimal("0")
-        ),
-        "savings_withdrawals": sum(
-            (row["savings_withdrawals"] for row in rows), Decimal("0")
-        ),
-    }
-    totals["savings_change"] = totals["savings_deposits"] - totals["savings_withdrawals"]
-
-    category_parameters = list(transaction_parameters)
-    categories = database.execute(
-        f"""
-        SELECT c.name, SUM(t.amount) AS amount
+        SELECT c.id, c.name, c.color, t.type, SUM(t.amount) AS amount
         FROM transactions AS t
         JOIN categories AS c ON c.id = t.category_id
-        WHERE {transaction_condition} AND {transaction_dates}
-          AND t.type = 'expense'
-        GROUP BY c.id, c.name
-        ORDER BY amount DESC
-        LIMIT 8
+        WHERE {condition}
+          AND t.transaction_date >= %s
+          AND t.transaction_date < %s
+        GROUP BY c.id, c.name, c.color, t.type
+        ORDER BY t.type, amount DESC, c.name
         """,
-        category_parameters,
+        parameters + [start, end],
     ).fetchall()
-    for category in categories:
-        category["amount_display"] = format_money(category["amount"], currency)
 
-    summary = get_budget_summary(scope)
+    currency = g.user["currency"]
+    result = {"income": [], "expense": []}
+    for row in rows:
+        row["amount_display"] = format_money(row["amount"], currency)
+        result[row["type"]].append(row)
+
+    for category_type, items in result.items():
+        largest = max((item["amount"] for item in items), default=Decimal("1"))
+        for item in items:
+            item["percent"] = float(item["amount"] / largest * 100)
+    return result
+
+
+def operation_months(scope, start, end):
+    condition, parameters = access_condition(scope)
+    result_rows = get_db().execute(
+        f"""
+        SELECT DATE_TRUNC('month', t.transaction_date)::date AS month,
+               COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'income'), 0) AS income,
+               COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'expense'), 0) AS expenses
+        FROM transactions AS t
+        WHERE {condition}
+          AND t.transaction_date >= %s
+          AND t.transaction_date < %s
+        GROUP BY DATE_TRUNC('month', t.transaction_date)
+        ORDER BY month
+        """,
+        parameters + [start, end],
+    ).fetchall()
+    by_month = {row["month"]: row for row in result_rows}
+    currency = g.user["currency"]
+    rows = []
+    cursor = start
+    while cursor < end:
+        values = by_month.get(cursor, {})
+        income = values.get("income", Decimal("0"))
+        expenses = values.get("expenses", Decimal("0"))
+        rows.append(
+            {
+                "date": cursor,
+                "value": cursor.strftime("%Y-%m"),
+                "label": MONTH_NAMES[cursor.month - 1],
+                "income": income,
+                "expenses": expenses,
+                "income_display": format_money(income, currency),
+                "expenses_display": format_money(expenses, currency),
+            }
+        )
+        cursor = next_month(cursor)
+
+    largest = max(
+        [row[value] for row in rows for value in ("income", "expenses")]
+        + [Decimal("1")]
+    )
+    for row in rows:
+        row["income_percent"] = float(row["income"] / largest * 100)
+        row["expenses_percent"] = float(row["expenses"] / largest * 100)
+    return rows
+
+
+def operation_report(scope, period, month_start, year):
+    if period == "year":
+        start = date(year, 1, 1)
+        end = date(year + 1, 1, 1)
+        title = f"{year} год"
+        months = operation_months(scope, start, end)
+    else:
+        start = month_start
+        end = next_month(start)
+        title = f"{MONTH_NAMES[start.month - 1]} {start.year}"
+        months = []
+
+    totals = operation_totals(scope, start, end)
+    currency = g.user["currency"]
+    totals["income_display"] = format_money(totals["income"], currency)
+    totals["expenses_display"] = format_money(totals["expenses"], currency)
+    totals["difference"] = totals["income"] - totals["expenses"]
+    totals["difference_display"] = format_money(totals["difference"], currency)
+
     return {
-        "scope": scope,
+        "title": title,
+        "totals": totals,
+        "categories": category_breakdown(scope, start, end),
+        "months": months,
+    }
+
+
+def savings_report(scope, year):
+    start = date(year, 1, 1)
+    end = date(year + 1, 1, 1)
+    condition, base_parameters = savings_access_condition(scope)
+    database = get_db()
+
+    opening_row = database.execute(
+        f"""
+        SELECT COALESCE(SUM(CASE
+                   WHEN s.entry_type = 'deposit' THEN s.amount
+                   ELSE -s.amount
+               END), 0) AS balance
+        FROM savings_entries AS s
+        WHERE {condition} AND s.entry_date < %s
+        """,
+        base_parameters + [start],
+    ).fetchone()
+
+    result_rows = database.execute(
+        f"""
+        SELECT DATE_TRUNC('month', s.entry_date)::date AS month,
+               COALESCE(SUM(s.amount) FILTER (WHERE s.entry_type = 'deposit'), 0) AS deposits,
+               COALESCE(SUM(s.amount) FILTER (WHERE s.entry_type = 'withdrawal'), 0) AS withdrawals
+        FROM savings_entries AS s
+        WHERE {condition} AND s.entry_date >= %s AND s.entry_date < %s
+        GROUP BY DATE_TRUNC('month', s.entry_date)
+        ORDER BY month
+        """,
+        base_parameters + [start, end],
+    ).fetchall()
+    by_month = {row["month"]: row for row in result_rows}
+
+    currency = g.user["currency"]
+    balance = opening_row["balance"]
+    rows = []
+    cursor = start
+    while cursor < end:
+        values = by_month.get(cursor, {})
+        deposits = values.get("deposits", Decimal("0"))
+        withdrawals = values.get("withdrawals", Decimal("0"))
+        change = deposits - withdrawals
+        balance += change
+        rows.append(
+            {
+                "label": MONTH_NAMES[cursor.month - 1],
+                "deposits": deposits,
+                "withdrawals": withdrawals,
+                "change": change,
+                "balance": balance,
+                "deposits_display": format_money(deposits, currency),
+                "withdrawals_display": format_money(withdrawals, currency),
+                "change_display": format_money(change, currency),
+                "balance_display": format_money(balance, currency),
+            }
+        )
+        cursor = next_month(cursor)
+
+    max_balance = max([row["balance"] for row in rows] + [Decimal("1")])
+    for row in rows:
+        row["balance_percent"] = float(max(row["balance"], 0) / max_balance * 100)
+
+    entries = database.execute(
+        f"""
+        SELECT s.entry_type, s.amount, s.entry_date, s.reason, u.name AS member
+        FROM savings_entries AS s
+        JOIN users AS u ON u.id = s.user_id
+        WHERE {condition} AND s.entry_date >= %s AND s.entry_date < %s
+        ORDER BY s.entry_date DESC, s.created_at DESC
+        """,
+        base_parameters + [start, end],
+    ).fetchall()
+    for entry in entries:
+        entry["type_label"] = (
+            "Пополнение" if entry["entry_type"] == "deposit" else "Трата"
+        )
+        entry["amount_display"] = format_money(
+            entry["amount"], currency, entry["entry_type"]
+        )
+
+    deposits_total = sum((row["deposits"] for row in rows), Decimal("0"))
+    withdrawals_total = sum((row["withdrawals"] for row in rows), Decimal("0"))
+    return {
+        "opening_display": format_money(opening_row["balance"], currency),
+        "deposits_display": format_money(deposits_total, currency),
+        "withdrawals_display": format_money(withdrawals_total, currency),
+        "closing_display": format_money(balance, currency),
         "rows": rows,
-        "categories": categories,
-        "max_value": max(raw_values + [Decimal("1")]),
-        "totals": {
-            **totals,
-            **{
-                f"{name}_display": format_money(value, currency)
-                for name, value in totals.items()
-            },
-        },
-        "savings_state": summary["savings"],
-        "balance": summary["balance"],
-        "balance_negative": summary["balance_negative"],
+        "entries": entries,
     }
 
 
 @analytics_bp.get("/analytics")
 @login_required
 def index():
-    selected_scope = request.args.get("scope", "personal")
-    if selected_scope not in {"personal", "family", "all"}:
-        selected_scope = "personal"
-    if selected_scope in {"family", "all"} and g.family is None:
-        selected_scope = "personal"
+    scope = selected_scope()
+    view = request.args.get("view", "operations")
+    if view not in {"operations", "savings"}:
+        view = "operations"
 
     period = request.args.get("period", "month")
-    if period not in {"day", "week", "month", "quarter", "year", "all", "custom"}:
+    if period not in {"month", "year"}:
         period = "month"
-    date_from_raw = request.args.get("date_from", "")
-    date_to_raw = request.args.get("date_to", "")
-    start, end = period_bounds(period, date_from_raw, date_to_raw)
-    if end is None:
-        flash("Проверьте выбранные даты. Максимальный интервал — 10 лет.", "danger")
-        period = "month"
-        start, end = period_bounds(period)
 
-    grouping = request.args.get("group_by", "auto")
-    if grouping not in {"auto", "day", "week", "month", "year"}:
-        grouping = "auto"
-    effective_grouping = automatic_grouping(start, end) if grouping == "auto" else grouping
-    scopes = (
-        ["personal", "family"]
-        if selected_scope == "all" and g.family is not None
-        else [selected_scope]
+    month_start = selected_month()
+    year = selected_year() if request.args.get("year") else month_start.year
+    report = (
+        savings_report(scope, year)
+        if view == "savings"
+        else operation_report(scope, period, month_start, year)
     )
-    series = [analytics_for_scope(scope, start, end, effective_grouping) for scope in scopes]
 
     return render_template(
         "analytics/index.html",
-        series=series,
-        selected_scope=selected_scope,
-        selected_period=period,
-        selected_grouping=grouping,
-        effective_grouping=effective_grouping,
-        date_from=date_from_raw or (start.isoformat() if start else ""),
-        date_to=date_to_raw or ((end - timedelta(days=1)).isoformat()),
+        scope=scope,
+        view=view,
+        period=period,
+        month=month_start,
+        month_value=month_start.strftime("%Y-%m"),
+        previous_month=next_month(month_start, -1).strftime("%Y-%m"),
+        following_month=next_month(month_start).strftime("%Y-%m"),
+        year=year,
+        report=report,
     )
