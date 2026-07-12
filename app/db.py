@@ -95,6 +95,7 @@ def init_app(app):
                 "row_factory": dict_row,
                 "connect_timeout": app.config["DATABASE_CONNECT_TIMEOUT"],
             },
+            check=ConnectionPool.check_connection,
             min_size=app.config["DATABASE_POOL_MIN_SIZE"],
             max_size=app.config["DATABASE_POOL_MAX_SIZE"],
             max_idle=app.config["DATABASE_POOL_MAX_IDLE"],

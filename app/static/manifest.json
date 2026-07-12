@@ -1,0 +1,25 @@
+{
+  "name": "Семейный бюджет",
+  "short_name": "Бюджет",
+  "description": "Учебное приложение для ведения личного и семейного бюджета",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fbff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "images/mini_logo.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
