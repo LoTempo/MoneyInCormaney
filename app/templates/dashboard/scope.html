@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/savings_dialog.html" import savings_dialog with context %}
+{% from "components/transactions_table.html" import transactions_table with context %}
 
 {% set is_family = scope == 'family' %}
 {% block title %}{{ "Семейный" if is_family else "Личный" }} бюджет — Семейный бюджет{% endblock %}
@@ -75,22 +76,10 @@
     {% endif %}
 </section>
 
-<section class="card content-card {% if is_family %}family-surface{% endif %}">
+<section class="card content-card transactions-card {% if is_family %}family-surface{% endif %}">
     <div class="section-heading"><h2>Операции бюджета</h2><p>Последние двадцать записей.</p></div>
     {% if transactions %}
-        <div class="table-wrap"><table>
-            <thead><tr><th>Описание</th><th>Тип</th><th>Категория</th><th>Автор</th><th>Дата</th><th class="align-right">Сумма</th></tr></thead>
-            <tbody>{% for transaction in transactions %}
-                <tr class="{{ 'family-row' if is_family else 'personal-row' }}">
-                    <td>{{ transaction.description }}{% if is_family %} <span class="tag tag--family"># Семейная</span>{% endif %}</td>
-                    <td>{{ transaction.type_label }}</td>
-                    <td><span class="tag tag--category-color" data-category-color="{{ transaction.category_color }}"><span class="category-color-dot" aria-hidden="true"></span>{{ transaction.category }}</span></td>
-                    <td>{{ transaction.member }}</td>
-                    <td>{{ transaction.date.strftime('%d.%m.%Y') }}</td>
-                    <td class="align-right amount amount--{{ transaction.type }}">{{ transaction.amount }}</td>
-                </tr>
-            {% endfor %}</tbody>
-        </table></div>
+        {{ transactions_table(transactions) }}
     {% else %}<div class="empty-state"><h3>Операций пока нет</h3></div>{% endif %}
 </section>
 {% endblock %}

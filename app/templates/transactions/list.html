@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/transactions_table.html" import transactions_table with context %}
 {% block title %}Операции — Семейный бюджет{% endblock %}
 
 {% block content %}
@@ -41,99 +42,7 @@
 
 <section class="card content-card transactions-card">
     {% if transactions %}
-        <p class="transaction-mobile-hint">Нажмите на операцию, чтобы посмотреть подробности.</p>
-        <div class="table-wrap table-wrap--transactions">
-            <table class="transactions-table">
-                <thead>
-                    <tr>
-                        <th class="transaction-desktop-column">Описание</th>
-                        <th class="transaction-desktop-column">Тип</th>
-                        <th>Категория</th>
-                        <th class="transaction-desktop-column">Автор</th>
-                        <th class="transaction-desktop-column">Дата</th>
-                        <th class="align-right">Сумма</th>
-                        <th class="transaction-desktop-column"><span class="visually-hidden">Действия</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for transaction in transactions %}
-                        <tr class="transaction-row {{ 'family-row' if transaction.scope == 'family' else 'personal-row' }}"
-                            data-transaction-dialog="transaction-details-{{ transaction.id }}"
-                            aria-label="Открыть подробности операции {{ transaction.category }}, {{ transaction.amount }}">
-                            <td class="transaction-desktop-column">
-                                {{ transaction.description }}
-                                {% if transaction.scope == 'family' %}<span class="tag tag--family"># Семейная</span>{% endif %}
-                            </td>
-                            <td class="transaction-desktop-column">{{ transaction.type_label }}</td>
-                            <td class="transaction-category-cell">
-                                <span class="tag tag--category-color" data-category-color="{{ transaction.category_color }}">
-                                    <span class="category-color-dot" aria-hidden="true"></span>
-                                    {{ transaction.category }}
-                                </span>
-                                {% if transaction.scope == 'family' %}<span class="tag tag--family transaction-mobile-family-tag"># Семейная</span>{% endif %}
-                            </td>
-                            <td class="transaction-desktop-column">{{ transaction.member }}</td>
-                            <td class="transaction-desktop-column">{{ transaction.date.strftime('%d.%m.%Y') }}</td>
-                            <td class="align-right amount amount--{{ transaction.type }} transaction-amount-cell">{{ transaction.amount }}</td>
-                            <td class="transaction-desktop-column">
-                                {% if transaction.can_edit %}
-                                    <div class="row-actions row-actions--end">
-                                        <a class="table-link" href="{{ url_for('transactions.transaction_edit', transaction_id=transaction.id) }}">Изменить</a>
-                                        <form method="post" action="{{ url_for('transactions.transaction_delete', transaction_id=transaction.id) }}" data-confirm="Удалить операцию «{{ transaction.description }}»?">
-                                            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                                            <button class="link-button link-button--danger" type="submit">Удалить</button>
-                                        </form>
-                                    </div>
-                                {% else %}
-                                    <span class="locked-note" title="Изменить может только автор">Только автор</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        {% for transaction in transactions %}
-            <dialog class="transaction-dialog" id="transaction-details-{{ transaction.id }}" aria-labelledby="transaction-title-{{ transaction.id }}">
-                <div class="transaction-dialog__content">
-                    <div class="dialog-heading">
-                        <div>
-                            <span class="eyebrow">Подробности операции</span>
-                            <h2 id="transaction-title-{{ transaction.id }}">{{ transaction.category }}</h2>
-                        </div>
-                        <button class="dialog-close" type="button" data-dialog-close aria-label="Закрыть">×</button>
-                    </div>
-
-                    <dl class="transaction-details">
-                        <div><dt>Описание</dt><dd>{{ transaction.description }}</dd></div>
-                        <div><dt>Тип</dt><dd>{{ transaction.type_label }}</dd></div>
-                        <div><dt>Категория</dt><dd><span class="tag tag--category-color" data-category-color="{{ transaction.category_color }}"><span class="category-color-dot" aria-hidden="true"></span>{{ transaction.category }}</span></dd></div>
-                        <div><dt>Бюджет</dt><dd>{% if transaction.scope == 'family' %}<span class="tag tag--family"># Семейная</span>{% else %}Личный{% endif %}</dd></div>
-                        <div><dt>Автор</dt><dd>{{ transaction.member }}</dd></div>
-                        <div><dt>Дата</dt><dd>{{ transaction.date.strftime('%d.%m.%Y') }}</dd></div>
-                        <div><dt>Сумма</dt><dd class="amount amount--{{ transaction.type }}">{{ transaction.amount }}</dd></div>
-                        {% if transaction.note %}<div class="transaction-details__wide"><dt>Комментарий</dt><dd>{{ transaction.note }}</dd></div>{% endif %}
-                    </dl>
-
-                    {% if transaction.can_edit %}
-                        <div class="transaction-dialog__actions">
-                            <button class="button button--ghost" type="button" data-dialog-close>Закрыть</button>
-                            <a class="button button--outline" href="{{ url_for('transactions.transaction_edit', transaction_id=transaction.id) }}">Изменить</a>
-                            <form method="post" action="{{ url_for('transactions.transaction_delete', transaction_id=transaction.id) }}" data-confirm="Удалить операцию «{{ transaction.description }}»?">
-                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                                <button class="button button--danger" type="submit">Удалить</button>
-                            </form>
-                        </div>
-                    {% else %}
-                        <div class="transaction-dialog__actions">
-                            <span class="locked-note">Изменить или удалить операцию может только её автор.</span>
-                            <button class="button button--ghost" type="button" data-dialog-close>Закрыть</button>
-                        </div>
-                    {% endif %}
-                </div>
-            </dialog>
-        {% endfor %}
+        {{ transactions_table(transactions) }}
     {% else %}
         <div class="empty-state">
             <div class="empty-icon">₽</div>

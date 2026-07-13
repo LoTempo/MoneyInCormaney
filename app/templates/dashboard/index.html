@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/savings_dialog.html" import savings_dialog with context %}
+{% from "components/transactions_table.html" import transactions_table with context %}
 
 {% block title %}Обзор — Семейный бюджет{% endblock %}
 
@@ -81,7 +82,7 @@
 </section>
 
 {% if personal or family %}
-<section class="card content-card">
+<section class="card content-card transactions-card">
     <div class="section-heading section-heading--row">
         <div>
             <h2>Последние операции</h2>
@@ -91,28 +92,7 @@
     </div>
 
     {% if recent_transactions %}
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr><th>Описание</th><th>Тип</th><th>Категория</th><th>Автор</th><th>Дата</th><th class="align-right">Сумма</th></tr>
-                </thead>
-                <tbody>
-                    {% for transaction in recent_transactions %}
-                        <tr class="{{ 'family-row' if transaction.scope == 'family' else 'personal-row' }}">
-                            <td>
-                                {{ transaction.description }}
-                                {% if transaction.scope == 'family' %}<span class="tag tag--family"># Семейная</span>{% endif %}
-                            </td>
-                            <td>{{ transaction.type_label }}</td>
-                            <td><span class="tag tag--category-color" data-category-color="{{ transaction.category_color }}"><span class="category-color-dot" aria-hidden="true"></span>{{ transaction.category }}</span></td>
-                            <td>{{ transaction.member }}</td>
-                            <td>{{ transaction.date.strftime('%d.%m.%Y') }}</td>
-                            <td class="align-right amount amount--{{ transaction.type }}">{{ transaction.amount }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {{ transactions_table(recent_transactions) }}
     {% else %}
         <div class="empty-state">
             <div class="empty-icon" aria-hidden="true">₽</div>
