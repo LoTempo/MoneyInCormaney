@@ -123,15 +123,65 @@ for (const form of categoryForms) {
     updateCategoryOptions();
 }
 
+const openDialog = (dialog) => {
+    if (!dialog?.showModal || dialog.open) {
+        return;
+    }
+    dialog.showModal();
+    dialog.querySelector("input[name='amount']")?.focus();
+};
+
 for (const opener of document.querySelectorAll("[data-dialog-open]")) {
     opener.addEventListener("click", () => {
-        const dialog = document.getElementById(opener.dataset.dialogOpen);
-        if (dialog?.showModal) {
-            dialog.showModal();
-            dialog.querySelector("input[name='amount']")?.focus();
+        openDialog(document.getElementById(opener.dataset.dialogOpen));
+    });
+}
+
+const transactionRows = document.querySelectorAll("[data-transaction-dialog]");
+const mobileTransactions = window.matchMedia("(max-width: 600px)");
+
+const updateTransactionRows = () => {
+    for (const row of transactionRows) {
+        if (mobileTransactions.matches) {
+            row.tabIndex = 0;
+            row.setAttribute("role", "button");
+            row.setAttribute("aria-haspopup", "dialog");
+        } else {
+            row.removeAttribute("tabindex");
+            row.removeAttribute("role");
+            row.removeAttribute("aria-haspopup");
+        }
+    }
+};
+
+const openTransactionDetails = (row) => {
+    if (!mobileTransactions.matches) {
+        return;
+    }
+    openDialog(document.getElementById(row.dataset.transactionDialog));
+};
+
+for (const row of transactionRows) {
+    row.addEventListener("click", (event) => {
+        if (event.target.closest("a, button, input, select, textarea, form")) {
+            return;
+        }
+        openTransactionDetails(row);
+    });
+    row.addEventListener("keydown", (event) => {
+        if (
+            event.target === row
+            && mobileTransactions.matches
+            && (event.key === "Enter" || event.key === " ")
+        ) {
+            event.preventDefault();
+            openTransactionDetails(row);
         }
     });
 }
+
+mobileTransactions.addEventListener?.("change", updateTransactionRows);
+updateTransactionRows();
 
 for (const dialog of document.querySelectorAll("dialog")) {
     for (const closer of dialog.querySelectorAll("[data-dialog-close]")) {
